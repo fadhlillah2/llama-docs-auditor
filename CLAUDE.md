@@ -2,6 +2,56 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Quick Start Guide
+
+### Prerequisites
+```bash
+# Install Ollama
+brew install ollama  # macOS
+# or download from https://ollama.ai
+
+# Pull required model
+ollama pull qwen3:1.7b
+```
+
+### Terminal Setup (3 terminals)
+
+**Terminal 1 - Ollama:**
+```bash
+ollama serve
+```
+
+**Terminal 2 - Backend:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install flask flask-cors langchain langchain-community langchain-ollama python-dotenv werkzeug pypdf ollama scikit-learn numpy
+cd backend
+python3 server.py
+```
+
+**Terminal 3 - Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Access Points
+- **Frontend**: http://localhost:3000
+- **Backend**: http://127.0.0.1:8081
+
+### Current Status
+✅ **Works**: File upload, document processing, UI  
+⚠️ **Issue**: Q&A responses timeout (~30s+) due to embedding bottleneck
+
+**Quick Test:**
+1. Upload any PDF/TXT file via frontend
+2. Ask questions (expect slow responses)  
+3. Backend processes successfully but embedding queries are slow
+
+The system is ~90% functional - upload and processing work perfectly, Q&A needs optimization for production speed.
+
 ## Project Overview
 
 High-Precision Contract Advisor RAG is a contract Q&A system using Retrieval-Augmented Generation (RAG) technology. The system combines a Flask backend with LangChain for document processing and a Next.js frontend for user interaction. Built for Lizzy AI, an Israeli startup developing autonomous AI contract lawyers.
@@ -450,3 +500,326 @@ curl -X POST http://127.0.0.1:8081/upload_file -F "file=@backend/uploads/test_co
 2. Verify ChromaDB directory creation: `../data/chroma_db/`
 3. Monitor Ollama model loading time (first request is slow)
 4. Check document format is supported (PDF, DOCX, TXT)
+
+## Code Style & Development Guidelines
+
+### Python Backend Code Style
+- **PEP 8 Compliance**: Follow PEP 8 style guidelines strictly
+- **Import Organization**: Standard library imports first, then third-party, then local imports
+- **Global State**: Minimize use of global variables (currently: `qa_chain` in server.py)
+- **Error Handling**: Always use try/except blocks for external API calls and file operations
+- **Type Hints**: Use type hints where possible for better code documentation
+- **File Paths**: Use forward slashes for cross-platform compatibility
+
+**Example Code Pattern**:
+```python
+from typing import Optional
+import os
+from flask import Flask, request, jsonify
+
+def process_file(file_path: str) -> Optional[dict]:
+    """Process uploaded file with proper error handling."""
+    try:
+        # Processing logic here
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+```
+
+### Frontend Code Style (Next.js + TypeScript)
+- **Mixed JS/JSX and TS/TSX**: Maintain existing pattern (components in JSX, pages in TSX)
+- **Component Structure**: Use functional components with hooks
+- **State Management**: React hooks for local state, Axios for API calls
+- **Styling**: Tailwind CSS classes with Ionic React components
+- **Async Operations**: Use async/await pattern consistently
+
+**Example Component Pattern**:
+```jsx
+import { useState, useEffect } from 'react'
+import axios from 'axios'
+
+const MyComponent = () => {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleApiCall = async () => {
+    setLoading(true)
+    try {
+      const response = await axios.post('http://127.0.0.1:8081/api', data)
+      setData(response.data)
+    } catch (error) {
+      console.error('API call failed:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="p-4">
+      {loading ? 'Loading...' : 'Ready'}
+    </div>
+  )
+}
+```
+
+## Environment & Dependency Management
+
+### Python Virtual Environment (Critical)
+**Always use virtual environments** to prevent dependency conflicts:
+
+```bash
+# Initial setup (one time)
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+# venv\Scripts\activate   # Windows
+
+# Essential packages only (avoid full requirements.txt)
+pip install flask flask-cors langchain langchain-community python-dotenv werkzeug pypdf ollama
+
+# Verify critical dependencies
+python3 -c "import langchain; print('✓ LangChain:', langchain.__version__)"
+python3 -c "import ollama; print('✓ Ollama client installed')"
+python3 -c "from flask import Flask; print('✓ Flask installed')"
+```
+
+### Node.js Package Management
+```bash
+# Clean reinstall if issues occur
+rm -rf node_modules package-lock.json
+npm install
+
+# Security audit
+npm audit && npm audit fix
+
+# Check for outdated packages
+npm outdated
+```
+
+### Ollama Model Management
+```bash
+# Essential model operations
+ollama list                    # List installed models
+ollama pull qwen3:1.7b        # Install default model
+ollama serve                  # Start Ollama server
+
+# Alternative models for different use cases
+ollama pull llama2            # 7B params, good quality
+ollama pull mistral           # 7B params, efficient
+ollama pull deepseek-r1:8b    # 8B params, reasoning (slow)
+ollama pull codellama         # Specialized for code/technical docs
+
+# Check model status
+curl http://localhost:11434/api/version
+```
+
+## Development Workflow Best Practices
+
+### Recommended Terminal Setup
+```bash
+# Terminal 1: Ollama (always running)
+ollama serve
+
+# Terminal 2: Backend Development
+source venv/bin/activate
+cd backend
+python3 server.py  # Development server with debug=True
+
+# Terminal 3: Frontend Development  
+cd frontend
+npm run dev  # Next.js development server
+
+# Terminal 4: Testing
+source venv/bin/activate
+cd backend && python3 -m unittest discover -v  # Backend tests
+cd ../frontend && npm test -- --watchAll=false  # Frontend tests
+```
+
+### Git Workflow & Version Control
+```bash
+# Pre-commit testing workflow
+git add .
+source venv/bin/activate
+cd backend && python3 -m unittest discover -v
+cd ../frontend && npm test -- --watchAll=false
+git commit -m "feat: your changes"
+
+# Branch management
+git checkout -b feature/your-feature
+git push -u origin feature/your-feature
+```
+
+### File Organization Conventions
+```
+backend/
+├── server.py              # Main Flask application
+├── test_server.py         # Flask endpoint tests
+├── test_rag_pipeline.py   # RAG component tests
+└── uploads/               # Document storage (server-side)
+
+frontend/
+├── src/components/        # Reusable UI components (JSX)
+├── src/pages/            # Next.js pages (TSX)
+├── __tests__/            # Jest test files
+└── jest.config.js        # Test configuration
+
+rag/
+├── rag_pipeline.py       # Main orchestrator
+├── data_loader.py        # Document processing
+├── embedding.py          # Vector embeddings
+├── retriever.py          # ChromaDB integration
+├── chat_model.py         # Ollama integration
+└── conversation_chain.py # LangChain chain creation
+```
+
+## Advanced Configuration
+
+### Performance Tuning
+**Backend Optimization**:
+- RAG pipeline caches `qa_chain` globally for performance
+- ChromaDB persists vectors at `../data/chroma_db/` (no re-indexing)
+- First Ollama request loads model (10-30 seconds delay expected)
+- Use `debug=False` in production for Flask
+
+**Frontend Optimization**:
+- Next.js automatically optimizes components and images
+- Use `npm run build` for production builds
+- Consider lazy loading for large components
+- Optimize bundle size with Next.js built-in analyzer
+
+### Security Configuration
+```python
+# Production Flask settings (backend/server.py)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['UPLOAD_FOLDER'] = '/secure/upload/path'   # Secure upload path
+CORS(app, origins=['https://yourdomain.com'])         # Restrict CORS
+
+# Secure file handling
+from werkzeug.utils import secure_filename
+filename = secure_filename(file.filename)
+```
+
+### Database & Vector Store Management
+```bash
+# ChromaDB operations
+ls -la ../data/chroma_db/                    # Check vector store
+rm -rf ../data/chroma_db/                    # Reset vector store
+du -sh ../data/chroma_db/                    # Check storage usage
+
+# Vector store debugging
+python3 -c "
+import chromadb
+client = chromadb.PersistentClient(path='../data/chroma_db')
+collections = client.list_collections()
+print('Collections:', [c.name for c in collections])
+"
+```
+
+## Debugging & Troubleshooting Guide
+
+### Backend Debugging Techniques
+```python
+# Enable detailed logging (add to server.py)
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Debug RAG pipeline (add to rag_pipeline.py)
+def create_conversation_chain(self):
+    print(f"📄 Loading documents from: {self.file_path}")
+    documents = self.load_documents.load_documents()
+    print(f"📄 Loaded {len(documents)} documents")
+    # ... rest of pipeline
+```
+
+### Frontend Debugging Techniques
+```javascript
+// Component debugging (add to any component)
+useEffect(() => {
+  console.log('🔍 Component state:', { data, loading, error })
+}, [data, loading, error])
+
+// API call debugging
+const handleApiCall = async () => {
+  console.log('🚀 API Request:', { url, data })
+  try {
+    const response = await axios.post(url, data)
+    console.log('✅ API Response:', response.data)
+  } catch (error) {
+    console.error('❌ API Error:', error.response?.data || error.message)
+  }
+}
+```
+
+### Network & Integration Debugging
+```bash
+# Test backend endpoints directly
+curl -X GET http://127.0.0.1:8081/                                          # Health check
+curl -X POST http://127.0.0.1:8081/upload_file -F "file=@test_contract.txt" # Upload test
+curl -X POST http://127.0.0.1:8081/ask_ai -H "Content-Type: application/json" -d '{"prompt":"test"}' # Query test
+
+# Monitor network traffic
+# Use browser DevTools → Network tab for frontend requests
+# Use Flask debug mode for backend request logging
+```
+
+### Common Error Solutions
+
+**"ModuleNotFoundError: langchain_community"**
+```bash
+source venv/bin/activate
+pip install langchain-community
+```
+
+**"Connection refused to Ollama"**
+```bash
+ollama serve  # Ensure Ollama is running
+curl http://localhost:11434/api/version  # Test connection
+```
+
+**"TypeError: Cannot read properties of undefined"** (Frontend)
+```bash
+rm -rf .next node_modules
+npm install
+npm run dev
+```
+
+**"ChromaDB permission denied"**
+```bash
+sudo chown -R $USER:$USER ../data/chroma_db/
+chmod -R 755 ../data/chroma_db/
+```
+
+**"Port 8081 already in use"**
+```bash
+lsof -i :8081          # Find process using port
+kill -9 <PID>          # Kill process
+# Or change port in backend/server.py line 110
+```
+
+### Development Tools & Extensions
+
+**Recommended VS Code Extensions**:
+- Python (Microsoft)
+- Pylance (Microsoft) 
+- ES7+ React/Redux/React-Native snippets
+- Tailwind CSS IntelliSense
+- Thunder Client (API testing)
+
+**Chrome DevTools Setup**:
+- React Developer Tools
+- Network tab for API monitoring
+- Console for JavaScript debugging
+
+**Python Debugging Tools**:
+```bash
+# Interactive debugging
+pip install ipdb
+# Add to code: import ipdb; ipdb.set_trace()
+
+# Code formatting
+pip install black
+black backend/server.py
+
+# Linting
+pip install flake8
+flake8 backend/
+```

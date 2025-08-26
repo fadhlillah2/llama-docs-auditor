@@ -17,20 +17,26 @@ class SimpleRetriever(BaseRetriever):
         self._setup()
     
     def _setup(self):
+        print("🔍 Starting retriever setup...")
         # Split documents into chunks
+        print("📝 Splitting documents into chunks...")
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200
         )
         
         self._chunks = text_splitter.split_documents(self._documents)
-        print(f"Created {len(self._chunks)} text chunks")
+        print(f"✓ Created {len(self._chunks)} text chunks")
         
         # Create embeddings for all chunks
         if self._chunks:
+            print("🧠 Creating embeddings for chunks...")
             chunk_texts = [chunk.page_content for chunk in self._chunks]
+            print(f"📊 Processing {len(chunk_texts)} chunk texts...")
             self._embeddings = self._embedding.embed_documents(chunk_texts)
-            print(f"Created embeddings for {len(self._embeddings)} chunks")
+            print(f"✓ Created embeddings for {len(self._embeddings)} chunks")
+        else:
+            print("⚠️ No chunks available for embedding")
     
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun = None) -> List[Document]:
         if not self._chunks or not self._embeddings:
