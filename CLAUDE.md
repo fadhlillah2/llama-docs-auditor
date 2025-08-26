@@ -4,24 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-High-Precision Contract Advisor RAG is a contract Q&A system using Retrieval-Augmented Generation (RAG) technology. The system combines a Flask backend with LangChain for document processing and a Next.js frontend for user interaction.
+High-Precision Contract Advisor RAG is a contract Q&A system using Retrieval-Augmented Generation (RAG) technology. The system combines a Flask backend with LangChain for document processing and a Next.js frontend for user interaction. Built for Lizzy AI, an Israeli startup developing autonomous AI contract lawyers.
 
 ## Architecture
 
 ### Backend (Flask + LangChain RAG)
-- **Entry point**: `backend/server.py` - Flask server running on port 8080
+- **Entry point**: `backend/server.py` - Flask server running on port 8081 (not 8080)
 - **RAG pipeline**: `rag/rag_pipeline.py` - Main orchestrator for document processing
 - **Core modules**:
   - `rag/data_loader.py` - Document loading (PDF, DOCX, TXT)
-  - `rag/embedding.py` - Vector embeddings creation
-  - `rag/retriever.py` - Document retrieval logic
-  - `rag/chat_model.py` - OpenAI GPT-3.5-turbo integration
-  - `rag/conversation_chain.py` - Chain creation for Q&A
+  - `rag/embedding.py` - Vector embeddings creation using HuggingFace
+  - `rag/retriever.py` - Document retrieval with ChromaDB vector store
+  - `rag/chat_model.py` - Ollama integration (not OpenAI)
+  - `rag/conversation_chain.py` - LangChain conversation chain creation
 
 ### Frontend (Next.js + TypeScript)
-- **Entry point**: `frontend/src/pages/index.tsx`
-- **Key components**: Upload interface, Chat interface, and Bot components
+- **Entry point**: `frontend/src/pages/index.tsx` - Main layout with Upload and Chat components
+- **Key components**: 
+  - `Upload.jsx` - File upload interface
+  - `Chat.jsx` - Chat interface for Q&A
+  - `Bot.jsx` - Bot response handling
 - **Styling**: Tailwind CSS with Ionic React components
+- **State management**: Uses React hooks with Axios for API calls
 
 ## Development Commands
 
@@ -89,38 +93,145 @@ No API keys required - Ollama runs completely locally and is free!
 
 ## Key Endpoints
 
-- **Backend**: http://127.0.0.1:8080
-  - `POST /upload_file` - Upload contract documents
-  - `POST /ask_ai` - Query uploaded documents
+- **Backend**: http://127.0.0.1:8081 (note: configured for port 8081, not 8080)
+  - `POST /upload_file` - Upload contract documents (PDF, DOCX, DOC, TXT)
+  - `POST /ask_ai` - Query uploaded documents with chat history
+  - `GET /` - Health check endpoint
 - **Frontend**: http://localhost:3000
 
-## File Upload Support
+## RAG Pipeline Flow
 
-Supported formats: PDF, DOCX, DOC, TXT
-Upload directory: `backend/uploads/`
-Vector store: `../data/chroma_db/`
+1. **Document Upload** (`/upload_file`): 
+   - File validation and secure storage in `backend/uploads/`
+   - Instantiates `RAGPipeline` class with uploaded file
+   - Creates global `qa_chain` for conversation state
 
-## Important Notes
+2. **Document Processing** (`rag_pipeline.py`):
+   - `LoadDocuments` - Loads and parses document content
+   - `EmbeddingsCreator` - Creates HuggingFace embeddings
+   - `Retriever` - Sets up ChromaDB vector store at `../data/chroma_db/`
+   - `ChatModel` - Initializes Ollama model connection
+   - `ConversationChain` - Creates LangChain retrieval QA chain
 
-- Uses Ollama with qwen3:1.7b model for chat completion (free and local)
-- ChromaDB for vector storage (minimal installation due to dependency conflicts)
-- Global `qa_chain` variable maintains conversation state in Flask server
-- Document processing pipeline: Load → Embed → Store → Retrieve → Generate
-- Ollama server must be running on http://localhost:11434
+3. **Query Processing** (`/ask_ai`):
+   - Accepts user questions via JSON POST
+   - Uses global `qa_chain.invoke()` with question and chat history
+   - Returns AI-generated answers based on retrieved document context
+
+## Architecture Patterns
+
+- **Stateful Backend**: Global `qa_chain` variable maintains conversation context
+- **Modular RAG Components**: Each RAG step is encapsulated in separate classes
+- **File-based State**: Vector embeddings persist in ChromaDB directory
+- **Direct Model Integration**: Ollama runs locally without API key requirements
+
+## Development Workflow
+
+### Testing RAG Pipeline
+- Upload test contracts in `backend/uploads/` (Raptor.pdf, test_contract.txt available)
+- Use Jupyter notebook `notebooks/experimentation.ipynb` for RAG experimentation
+- Monitor ChromaDB vector store creation in `../data/chroma_db/`
+
+### Code Organization
+- **Frontend**: React components are in JSX (not TSX), mixing JS and TS patterns
+- **Backend**: Pure Python with Flask, uses global state for simplicity
+- **RAG modules**: Each step isolated in separate Python classes for maintainability
+- **Configuration**: Model name centralized in `OLLAMA_MODEL_NAME` constant
 
 ## Common Issues
 
-1. **Ollama not running**: Ensure `ollama serve` is running before starting backend
-2. **Model not available**: Run `ollama pull qwen3:1.7b` to download the model
-3. **Dependency conflicts**: Some packages in requirements.txt may conflict - install essential packages manually
-4. **LangChain deprecations**: Update imports to use `langchain_community` modules
-5. **Virtual environment**: Always use venv to avoid system package conflicts
+1. **Port conflict**: Backend runs on 8081, not 8080 as documentation may suggest
+2. **Ollama not running**: Ensure `ollama serve` is running before starting backend
+3. **Model not available**: Run `ollama pull qwen3:1.7b` to download the model
+4. **Dependency conflicts**: Large requirements.txt with many packages - install essential ones manually:
+   ```bash
+   pip install flask flask-cors langchain langchain-community python-dotenv werkzeug pypdf ollama
+   ```
+5. **LangChain deprecations**: Uses `langchain_community` imports for Ollama and document loaders
+6. **Virtual environment**: Always use venv to avoid system package conflicts
+7. **Global state**: `qa_chain` must be initialized via file upload before querying
 
-## Model Options
+## Model Configuration
 
-You can change the model by updating `OLLAMA_MODEL_NAME` in both `backend/server.py` and `rag/rag_pipeline.py`:
+Change model by updating `OLLAMA_MODEL_NAME` in both `backend/server.py:23` and `rag/rag_pipeline.py:11`:
 - `qwen3:1.7b` (default, 1.7B parameters, fast and efficient)
-- `llama2` (7B parameters, larger)
+- `llama2` (7B parameters, larger context)
 - `mistral` (7B parameters, good quality)
 - `deepseek-r1:8b` (8B parameters, reasoning focused but slow)
-- `codellama` (good for technical documents)
+- `codellama` (specialized for technical/code documents)
+
+## Testing
+
+### Backend Testing
+The backend uses Python's built-in `unittest` framework for testing:
+
+```bash
+# Run all backend tests
+cd backend && python3 -m unittest discover -v
+
+# Run specific test file
+cd backend && python3 -m unittest test_server.py -v
+cd backend && python3 -m unittest test_rag_pipeline.py -v
+
+# Run tests with virtual environment
+source venv/bin/activate
+cd backend && python3 -m unittest discover -v
+```
+
+**Test Files**:
+- `backend/test_server.py` - Tests Flask API endpoints, file upload validation, and error handling
+- `backend/test_rag_pipeline.py` - Tests RAG pipeline components, document loading, and embeddings
+
+**Testing Notes**:
+- Tests require dependencies to be installed: `pip install flask flask-cors langchain langchain-community python-dotenv werkzeug pypdf ollama`
+- Some tests mock external dependencies (Ollama model, file system) to run in isolation
+- RAG pipeline tests use sample documents from `backend/uploads/test_contract.txt`
+
+### Frontend Testing  
+The frontend uses Jest with React Testing Library:
+
+```bash
+# Install test dependencies (already added to package.json)
+cd frontend && npm install
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm test -- --coverage
+```
+
+**Test Configuration**:
+- `frontend/jest.config.js` - Jest configuration with Next.js integration
+- `frontend/jest.setup.js` - Test setup with React Testing Library matchers
+- `frontend/__tests__/` - Test files directory
+
+**Test Files**:
+- `frontend/__tests__/Upload.test.js` - Tests file upload component rendering and interactions
+
+**Testing Notes**:
+- Jest configuration includes Next.js support for proper component testing
+- Tests mock Next.js router and axios HTTP calls to avoid external dependencies
+- Some tests may require additional setup for complex Next.js components with hooks
+- Testing library focuses on user interaction patterns rather than implementation details
+
+### Integration Testing Workflow
+1. **Backend**: Start with unit tests, then integration tests with actual Ollama model
+2. **Frontend**: Component tests, then E2E tests with running backend
+3. **Full Stack**: Upload document → Query AI → Verify response flow
+
+### Test Data Setup
+- Use `backend/uploads/test_contract.txt` for consistent test data
+- Mock Ollama responses for faster test execution
+- Create temporary test files when needed, clean up after tests
+
+### Continuous Integration
+Run both frontend and backend tests before commits:
+```bash
+# Full test suite
+cd backend && python3 -m unittest discover -v
+cd ../frontend && npm test -- --watchAll=false
+```

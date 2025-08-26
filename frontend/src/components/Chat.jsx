@@ -48,7 +48,7 @@ function Chat() {
       prompt: prompt,
     };
 
-    fetch("http://127.0.0.1:8080/ask_ai", {
+    fetch("http://127.0.0.1:8081/ask_ai", {
       method: "POST",
       body: JSON.stringify(data), // Convert data to JSON
       headers: {
