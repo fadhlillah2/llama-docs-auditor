@@ -32,7 +32,10 @@ python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies (essential packages only due to conflicts)
-pip install flask flask-cors langchain langchain-openai langchain-community python-dotenv werkzeug pypdf
+pip install flask flask-cors langchain langchain-community python-dotenv werkzeug pypdf ollama
+
+# Ensure Ollama is running (in separate terminal)
+ollama serve
 
 # Run backend server
 cd backend && python3 server.py
@@ -58,10 +61,31 @@ npm run lint
 
 ## Environment Configuration
 
-Create `.env` file in project root:
+### Ollama Setup (Required)
+1. **Install Ollama**:
+```bash
+# Download from https://ollama.ai or use package manager
+# macOS: brew install ollama
+# Linux: curl -fsSL https://ollama.ai/install.sh | sh
 ```
-OPENAI_API_KEY=your_openai_api_key_here
+
+2. **Pull the model**:
+```bash
+# Pull the qwen3:1.7b model (default for this project)
+ollama pull qwen3:1.7b
+
+# Other available models:
+# ollama pull llama2
+# ollama pull mistral
+# ollama pull deepseek-r1:8b
 ```
+
+3. **Start Ollama server**:
+```bash
+ollama serve  # Runs on http://localhost:11434
+```
+
+No API keys required - Ollama runs completely locally and is free!
 
 ## Key Endpoints
 
@@ -78,14 +102,25 @@ Vector store: `../data/chroma_db/`
 
 ## Important Notes
 
-- Uses OpenAI GPT-3.5-turbo model for chat completion
+- Uses Ollama with qwen3:1.7b model for chat completion (free and local)
 - ChromaDB for vector storage (minimal installation due to dependency conflicts)
 - Global `qa_chain` variable maintains conversation state in Flask server
 - Document processing pipeline: Load → Embed → Store → Retrieve → Generate
+- Ollama server must be running on http://localhost:11434
 
 ## Common Issues
 
-1. **Dependency conflicts**: Some packages in requirements.txt may conflict - install essential packages manually
-2. **LangChain deprecations**: Update imports to use `langchain_community` modules
-3. **OpenAI API key**: Required for backend functionality
-4. **Virtual environment**: Always use venv to avoid system package conflicts
+1. **Ollama not running**: Ensure `ollama serve` is running before starting backend
+2. **Model not available**: Run `ollama pull qwen3:1.7b` to download the model
+3. **Dependency conflicts**: Some packages in requirements.txt may conflict - install essential packages manually
+4. **LangChain deprecations**: Update imports to use `langchain_community` modules
+5. **Virtual environment**: Always use venv to avoid system package conflicts
+
+## Model Options
+
+You can change the model by updating `OLLAMA_MODEL_NAME` in both `backend/server.py` and `rag/rag_pipeline.py`:
+- `qwen3:1.7b` (default, 1.7B parameters, fast and efficient)
+- `llama2` (7B parameters, larger)
+- `mistral` (7B parameters, good quality)
+- `deepseek-r1:8b` (8B parameters, reasoning focused but slow)
+- `codellama` (good for technical documents)

@@ -8,7 +8,7 @@ from conversation_chain import ConversationChain
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv()
-GPT_MODEL_NAME = 'gpt-3.5-turbo'
+OLLAMA_MODEL_NAME = 'qwen3:1.7b'
 load_dotenv(find_dotenv())
 
 class RAGPipeline:
@@ -31,7 +31,7 @@ class RAGPipeline:
         return retriever
     
     def qa_chain(self):
-        chat_model = ChatModel(GPT_MODEL_NAME).initialize_chat_model()
+        chat_model = ChatModel(OLLAMA_MODEL_NAME).initialize_chat_model()
         retriever = self.pipeline()
         conversation_chain = ConversationChain().create_retrieval_qa_chain(chat_model,retriever)
         return conversation_chain

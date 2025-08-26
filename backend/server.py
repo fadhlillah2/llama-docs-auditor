@@ -20,10 +20,9 @@ app = Flask(__name__)
 CORS(app)
 
 
-GPT_MODEL_NAME = 'gpt-3.5-turbo'
+OLLAMA_MODEL_NAME = 'qwen3:1.7b'
 vector_db_path = "../data/chroma_db/"
 load_dotenv(find_dotenv())
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 
 
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'docx', 'doc'])
@@ -108,4 +107,4 @@ def query_endpoint():
      
 
 if __name__ == '__main__':
-    app.run(debug=True, port="8080")
+    app.run(debug=True, port="8081")

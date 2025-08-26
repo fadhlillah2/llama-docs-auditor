@@ -44,8 +44,27 @@ class LoadDocuments:
             return None
         '''
         try:
-             loader = DirectoryLoader(data_path, glob="./*.pdf")
-             documents = loader.load()
+             # Load multiple file types
+             loaders = {
+                 '.pdf': DirectoryLoader(data_path, glob="./*.pdf"),
+                 '.txt': DirectoryLoader(data_path, glob="./*.txt"),
+                 '.docx': DirectoryLoader(data_path, glob="./*.docx"),
+                 '.doc': DirectoryLoader(data_path, glob="./*.doc")
+             }
+             
+             documents = []
+             for file_type, loader in loaders.items():
+                 try:
+                     docs = loader.load()
+                     documents.extend(docs)
+                 except Exception as e:
+                     print(f"Could not load {file_type} files: {e}")
+                     continue
+             
+             if not documents:
+                 print("No documents found in uploads directory")
+                 return []
+             
              return documents
         except Exception as e:
              return f'An error occurred {e}',400
