@@ -7,36 +7,83 @@ function Upload() {
   
   const router = useRouter()
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
 
   const handleFileSubmit = async (e) => {
     e.preventDefault();
     setIsUploading(true);
+    setUploadStatus('');
+    
+    const formData = new FormData(e.target);
+    const fileInput = e.target.file;
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+      swal.fire({
+        title: "Please select a file first",
+        icon: "warning",
+        toast: true,
+        timer: 3000,
+        position: 'top-right',
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
+      setIsUploading(false);
+      return;
+    }
+
     swal.fire({
-      title: "File loading...",
-      icon: "success",
+      title: "Uploading file...",
+      icon: "info",
       toast: true,
       timer: 6000,
       position: 'top-right',
       timerProgressBar: true,
       showConfirmButton: false,
-  })
+    });
     
-    const formData = new FormData(e.target);
-
-    await fetch("http://127.0.0.1:8081/upload_file", {
-      method: "POST",
-      body: formData,
-    })
-    .then((response) => response.json())
-    .then(data => {
-      console.log(data);
-      
-    })
-    .catch((error) => {
-      console.error("Error uploading the file:", error);
+    try {
+      const response = await fetch("http://127.0.0.1:8081/upload_file", {
+        method: "POST",
+        body: formData,
       });
       
+      const data = await response.json();
+      console.log(data);
+      
+      if (response.ok) {
+        setUploadStatus('✅ File uploaded successfully! You can now chat with your document.');
+        swal.fire({
+          title: "File uploaded successfully!",
+          text: "You can now chat with your document using the chat interface.",
+          icon: "success",
+          toast: true,
+          timer: 5000,
+          position: 'top-right',
+          timerProgressBar: true,
+          showConfirmButton: false,
+        });
+        
+        // Clear the file input
+        fileInput.value = '';
+      } else {
+        throw new Error(data.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error("Error uploading the file:", error);
+      setUploadStatus('❌ Upload failed: ' + error.message);
+      swal.fire({
+        title: "Upload failed",
+        text: error.message,
+        icon: "error",
+        toast: true,
+        timer: 5000,
+        position: 'top-right',
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
+    } finally {
       setIsUploading(false);
+    }
   };
   const info = [
     { text: "Years experience", count: "04" },
@@ -54,6 +101,12 @@ function Upload() {
             Upload your file here 
           </h2>
           
+          {uploadStatus && (
+            <div className="mb-4 p-3 rounded-lg bg-gray-800 border border-gray-600">
+              <p className="text-sm">{uploadStatus}</p>
+            </div>
+          )}
+          
             <form encType="multipart/form-data" onSubmit={handleFileSubmit}>
               <div className="mb-3">
                 <input
@@ -61,7 +114,11 @@ function Upload() {
                   className="form-control"
                   type="file"
                   id="formFile"
+                  accept=".pdf,.doc,.docx,.txt"
                 />
+                <small className="text-gray-400 mt-2 block">
+                  Supported formats: PDF, DOC, DOCX, TXT
+                </small>
               </div>
               {isUploading ? 
               <button disabled type="button btn-primary" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 inline-flex items-center">

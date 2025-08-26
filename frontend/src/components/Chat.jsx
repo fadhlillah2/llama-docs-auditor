@@ -43,19 +43,45 @@ function Chat() {
     }
     prompt_input.value = "";
 
+    // Add user message and loading message
+    const messagesWithUser = [
+      ...chatMessages,
+      {
+        position: "right_bubble",
+        message: prompt,
+      },
+      {
+        position: "left_bubble",
+        message: "Thinking... (this may take 30-60 seconds for first query)",
+      },
+    ];
+    setchatMessages(messagesWithUser);
+    chat_scroll_up();
+
     const data = {
       chatHistory: JSON.stringify(chatMessages),
       prompt: prompt,
     };
 
+    // Set timeout to 2 minutes for Ollama model loading
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
     fetch("http://127.0.0.1:8081/ask_ai", {
       method: "POST",
-      body: JSON.stringify(data), // Convert data to JSON
+      body: JSON.stringify(data),
       headers: {
-        "Content-Type": "application/json", // Set the content type to JSON
+        "Content-Type": "application/json",
       },
+      signal: controller.signal,
     })
-      .then((response) => response.json())
+      .then(async (response) => {
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
       .then((resData) => {
         const messages = [
           ...chatMessages,
@@ -65,13 +91,32 @@ function Chat() {
           },
           {
             position: "left_bubble",
-            message: resData.result,
+            message: resData.result || resData.error || "No response received",
           },
         ];
         setchatMessages(messages);
-        chat_scroll_up()
+        chat_scroll_up();
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.log("Error:", err);
+        const errorMessage = err.name === 'AbortError' 
+          ? "Request timed out. The AI model may be loading. Please try again in a moment."
+          : `Error: ${err.message || 'Failed to get response'}`;
+        
+        const messages = [
+          ...chatMessages,
+          {
+            position: "right_bubble",
+            message: prompt,
+          },
+          {
+            position: "left_bubble",
+            message: errorMessage,
+          },
+        ];
+        setchatMessages(messages);
+        chat_scroll_up();
+      });
   }
   
   return (
@@ -160,6 +205,11 @@ function Chat() {
                 id="chat-input"
                 placeholder="What can i help you with..."
                 maxLength="400"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    askAI();
+                  }
+                }}
               />
               <a
                 onClick={askAI}

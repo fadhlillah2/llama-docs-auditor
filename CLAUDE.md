@@ -235,3 +235,218 @@ Run both frontend and backend tests before commits:
 cd backend && python3 -m unittest discover -v
 cd ../frontend && npm test -- --watchAll=false
 ```
+
+## Build & Configuration Details
+
+### Python Environment Management
+**Critical**: Always use virtual environment to avoid dependency conflicts:
+```bash
+# Create virtual environment (one time setup)
+python3 -m venv venv
+
+# Activate virtual environment (every session)
+source venv/bin/activate  # macOS/Linux
+# or
+venv\Scripts\activate     # Windows
+
+# Install essential dependencies only
+pip install flask flask-cors langchain langchain-community python-dotenv werkzeug pypdf ollama
+
+# Verify installation
+python3 -c "import langchain; print('LangChain installed successfully')"
+python3 -c "import ollama; print('Ollama client installed successfully')"
+```
+
+### Frontend Build Configuration
+**Next.js Configuration**:
+- TypeScript enabled with mixed JS/JSX components
+- Tailwind CSS for styling with Ionic React components
+- Jest configured for testing with Next.js integration
+
+**Package Management**:
+```bash
+# Clean install (if node_modules corruption)
+rm -rf node_modules package-lock.json && npm install
+
+# Check for security vulnerabilities
+npm audit && npm audit fix
+
+# Update dependencies (use with caution)
+npm update
+```
+
+### Port Configuration
+**Backend Server**: `backend/server.py:110`
+- Default: `port="8081"`
+- Health check: `GET http://127.0.0.1:8081/`
+- Upload endpoint: `POST http://127.0.0.1:8081/upload_file`
+- Query endpoint: `POST http://127.0.0.1:8081/ask_ai`
+
+**Frontend Development Server**: `frontend/package.json`
+- Default: `http://localhost:3000`
+- Production build: `npm run build && npm start`
+
+### Database Configuration
+**ChromaDB Vector Store**:
+- Location: `../data/chroma_db/` (relative to backend directory)
+- Auto-created when first document is processed
+- Persistent storage for document embeddings
+- **Cleanup**: Delete directory to reset vector store
+
+## Development Workflow & Debugging
+
+### Recommended Development Sequence
+1. **Environment Setup**:
+   ```bash
+   # Terminal 1: Start Ollama
+   ollama serve
+   
+   # Terminal 2: Backend
+   source venv/bin/activate
+   cd backend && python3 server.py
+   
+   # Terminal 3: Frontend  
+   cd frontend && npm run dev
+   ```
+
+2. **Testing Workflow**:
+   ```bash
+   # Run tests before committing
+   source venv/bin/activate
+   cd backend && python3 -m unittest discover -v
+   cd ../frontend && npm test -- --watchAll=false
+   ```
+
+### Common Development Issues & Solutions
+
+**1. ModuleNotFoundError: langchain_community**
+```bash
+# Solution: Activate virtual environment and install dependencies
+source venv/bin/activate
+pip install langchain-community
+```
+
+**2. Ollama Connection Error**
+```bash
+# Check Ollama is running
+curl http://localhost:11434/api/version
+
+# If not running:
+ollama serve
+
+# Verify model is available
+ollama list
+```
+
+**3. Frontend Build Issues**
+```bash
+# Clear Next.js cache
+rm -rf .next
+
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**4. CORS Issues**
+- Backend uses `flask-cors` for cross-origin requests
+- Default allows all origins in development
+- Modify `backend/server.py:20` for production restrictions
+
+### Debugging Tools & Techniques
+
+**Backend Debugging**:
+```bash
+# Enable Flask debug mode (backend/server.py:110)
+app.run(debug=True, port="8081")
+
+# Check RAG pipeline logs
+# Add print statements in rag_pipeline.py for document processing flow
+
+# Monitor ChromaDB creation
+ls -la ../data/chroma_db/
+```
+
+**Frontend Debugging**:
+```bash
+# Start development server with detailed logging
+npm run dev -- --debug
+
+# Check browser console for JavaScript errors
+# Use React Developer Tools browser extension
+
+# Component state debugging
+console.log('Component state:', state) # Add to component code
+```
+
+**Full Stack Integration Debugging**:
+```bash
+# Monitor network requests
+# Browser DevTools → Network tab
+# Check request/response for /upload_file and /ask_ai
+
+# Backend request logging
+# Flask automatically logs requests in debug mode
+
+# Test endpoints directly
+curl -X GET http://127.0.0.1:8081/
+curl -X POST http://127.0.0.1:8081/upload_file -F "file=@backend/uploads/test_contract.txt"
+```
+
+### Performance Considerations
+
+**Backend Optimization**:
+- RAG pipeline creates global `qa_chain` variable for conversation state
+- ChromaDB vector store persists between requests (no re-indexing)
+- Ollama model loads on first request (can take 10-30 seconds)
+
+**Frontend Optimization**:
+- Next.js auto-optimizes components and images
+- Use `npm run build` for production optimization
+- Lazy load components for better performance
+
+### Code Style Guidelines
+
+**Python Backend**:
+- Follow PEP 8 style guidelines
+- Use global state sparingly (currently: `qa_chain`)
+- Error handling with try/catch blocks
+- File paths use forward slashes for cross-platform compatibility
+
+**JavaScript/TypeScript Frontend**:
+- Mixed JS/JSX and TS/TSX files (maintain existing pattern)
+- Tailwind CSS classes for styling
+- React hooks for state management
+- Async/await for API calls
+
+### Security Best Practices
+- No API keys required (Ollama runs locally)
+- File uploads restricted to: PDF, DOC, DOCX, TXT
+- Upload directory: `backend/uploads/` (server-side validation)
+- Use `secure_filename()` for uploaded files
+- CORS configured for development (review for production)
+
+## Troubleshooting Quick Reference
+
+**Backend Won't Start**:
+1. Check virtual environment is activated
+2. Verify all dependencies installed: `pip list | grep -E "(flask|langchain|ollama)"`
+3. Ensure Ollama is running: `ollama list`
+4. Check port 8081 is available: `lsof -i :8081`
+
+**Frontend Build Fails**:
+1. Clear cache: `rm -rf .next node_modules`
+2. Reinstall: `npm install`
+3. Check Node.js version compatibility
+4. Review TypeScript errors: `npx tsc --noEmit`
+
+**Tests Failing**:
+1. Backend: Check virtual environment and mocked dependencies
+2. Frontend: Verify Jest configuration and mocked modules
+3. Run tests individually to isolate issues: `npm test -- --testNamePattern="specific test"`
+
+**RAG Pipeline Issues**:
+1. Check document upload success in `backend/uploads/`
+2. Verify ChromaDB directory creation: `../data/chroma_db/`
+3. Monitor Ollama model loading time (first request is slow)
+4. Check document format is supported (PDF, DOCX, TXT)
