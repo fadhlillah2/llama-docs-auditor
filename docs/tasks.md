@@ -1,192 +1,183 @@
-# High-Precision Contract Advisor RAG - Improvement Tasks
+# High-Precision Contract Advisor RAG - Implementation Tasks
 
-## Critical Security & Stability Issues (Priority 1)
+*Refer to `docs/plan.md` for detailed rationale and technical specifications for each improvement area.*
 
-### Backend Security
-- [ ] **Fix global state management** - Replace global `qa_chain` variable with proper session management or request-scoped state
-- [ ] **Implement proper CORS configuration** - Restrict CORS origins for production, currently allows all origins
-- [ ] **Add file upload validation** - Implement proper file size limits, content validation, and sanitization
-- [ ] **Fix file storage security** - Move uploaded files outside web root, implement proper file permissions
-- [ ] **Add request rate limiting** - Implement rate limiting to prevent abuse of AI endpoints
-- [ ] **Validate environment variables** - Add validation for required environment variables and graceful fallbacks
+## Phase 1: Performance Optimization (Weeks 1-3)
+*Target: Resolve 30s+ response time bottleneck to <2s as outlined in plan.md*
 
-### Frontend Security  
-- [ ] **Fix XSS vulnerabilities** - Sanitize user inputs and implement proper content security policies
-- [ ] **Remove hard-coded API URLs** - Move API endpoints to environment variables
-- [ ] **Add proper error boundaries** - Implement React error boundaries for graceful error handling
-- [ ] **Fix direct DOM manipulation** - Replace `document.getElementById()` calls with React refs
+### 1.1 Embedding Pipeline Optimization
+- [ ] **Create embedding cache directory structure** - Set up `../cache/embeddings/` directory for persistent caching
+- [ ] **Implement embedding cache in `rag/embedding.py`** - Add disk-based caching to avoid recomputation of identical documents
+- [ ] **Add embedding batch processing** - Process document chunks in batches instead of individually
+- [ ] **Convert embedding creation to async/await** - Implement non-blocking embedding operations
+- [ ] **Uncomment and implement document chunking** - Enable proper text chunking in `rag/chunk_documents.py`
+- [ ] **Add chunk size optimization** - Configure optimal chunk sizes for contract documents
+- [ ] **Implement embedding deduplication** - Avoid processing identical text chunks multiple times
 
-### Dependencies & Configuration
-- [ ] **Clean up requirements.txt** - Remove unused dependencies (300+ packages for simple RAG system)
-- [ ] **Pin dependency versions** - Add version constraints for critical dependencies
-- [ ] **Add environment configuration** - Create proper `.env.example` and config validation
-- [ ] **Remove commented code** - Clean up commented imports and unused code blocks in RAG modules
+### 1.2 RAG Pipeline Optimization  
+- [ ] **Implement pipeline parallelization in `rag_pipeline.py`** - Process document loading, chunking, and embedding in parallel
+- [ ] **Add hybrid search capability** - Combine semantic and keyword search for better retrieval relevance
+- [ ] **Optimize context window for Ollama model** - Configure optimal context size for qwen3:1.7b model
+- [ ] **Implement memory management** - Add proper cleanup and memory pooling for long sessions
+- [ ] **Add pipeline performance monitoring** - Track processing times for each pipeline stage
+- [ ] **Implement smart retrieval ranking** - Improve relevance scoring for retrieved chunks
+- [ ] **Add pipeline error recovery** - Handle failures gracefully without full restart
 
-## Performance Optimizations (Priority 2)
+### 1.3 Vector Store Optimization
+- [ ] **Implement ChromaDB connection pooling** - Maintain persistent database connections
+- [ ] **Configure optimal ChromaDB indices** - Set up indices optimized for contract document queries
+- [ ] **Add vector query result caching** - Cache results for repeated similar questions
+- [ ] **Implement batch vector operations** - Group multiple database operations together
+- [ ] **Add vector store performance monitoring** - Track query times and cache hit rates
+- [ ] **Optimize ChromaDB collection settings** - Configure distance metrics and indexing for contracts
+- [ ] **Implement vector store cleanup** - Manage storage space and old embeddings
 
-### Backend Performance
-- [ ] **Implement caching layer** - Cache embeddings and frequently used vector store queries
-- [ ] **Add async/await pattern** - Convert synchronous operations to async where possible
-- [ ] **Optimize RAG pipeline** - Implement proper chunking strategies and document preprocessing
-- [ ] **Add connection pooling** - Implement connection pooling for database and Ollama connections
-- [ ] **Implement lazy loading** - Load Ollama model only when needed, not on startup
+## Phase 2: Architecture Refactoring (Weeks 4-6)
+*Target: Replace insecure global state and implement production-ready architecture*
 
-### Frontend Performance
-- [ ] **Add proper loading states** - Implement loading indicators for all async operations
-- [ ] **Optimize bundle size** - Remove unused imports and implement code splitting
-- [ ] **Add request caching** - Cache successful API responses to reduce server load
-- [ ] **Implement pagination** - Add pagination for chat history and file listings
-- [ ] **Add lazy loading for components** - Implement lazy loading for large components
+### 2.1 State Management Overhaul
+- [ ] **Create `backend/session_manager.py`** - Implement proper session management system
+- [ ] **Replace global `qa_chain` variable in `server.py`** - Use session-based state management
+- [ ] **Implement Flask session configuration** - Set up secure session handling
+- [ ] **Add user session persistence** - Store conversation state in database/cache
+- [ ] **Create session cleanup mechanism** - Automatically expire inactive sessions
+- [ ] **Add concurrent user support** - Enable multiple users without state conflicts
+- [ ] **Implement session-scoped RAG chains** - Isolate document processing per session
 
-### RAG Pipeline Optimization
-- [ ] **Implement document chunking** - Uncomment and properly implement document chunking
-- [ ] **Add embedding optimization** - Optimize embedding creation and storage
-- [ ] **Implement retrieval caching** - Cache vector similarity searches
-- [ ] **Add document preprocessing** - Implement proper text preprocessing and cleaning
-- [ ] **Optimize vector store operations** - Batch operations and optimize ChromaDB usage
+### 2.2 Security Hardening
+- [ ] **Configure production CORS settings in `server.py`** - Restrict origins to known domains
+- [ ] **Implement file upload size limits** - Add 16MB max file size enforcement
+- [ ] **Add file content validation** - Validate uploaded files are actually documents
+- [ ] **Move uploads outside web root** - Relocate uploads to secure directory
+- [ ] **Implement input sanitization** - Sanitize all user inputs and API responses
+- [ ] **Add request rate limiting** - Implement rate limiting middleware for API endpoints
+- [ ] **Create basic authentication system** - Add authentication for production deployment
+- [ ] **Add HTTPS configuration** - Set up SSL/TLS for secure communications
 
-## Code Quality & Architecture (Priority 3)
+### 2.3 Configuration Management
+- [ ] **Create comprehensive `.env.example`** - Document all required environment variables
+- [ ] **Add environment variable validation** - Validate required config on startup
+- [ ] **Implement feature flags system** - Add toggles for experimental features
+- [ ] **Standardize port configuration** - Fix port confusion, use 8081 consistently
+- [ ] **Create configuration schema validation** - Validate config values and types
+- [ ] **Add development/production config separation** - Different configs per environment
+- [ ] **Implement configuration hot reload** - Reload config without restart (where applicable)
 
-### Backend Code Quality
-- [ ] **Add comprehensive logging** - Implement structured logging with proper log levels
-- [ ] **Add type hints throughout** - Add Python type hints for better code documentation
-- [ ] **Implement proper error handling** - Add consistent error handling patterns across all modules
-- [ ] **Add input validation** - Validate all request inputs with proper schemas
-- [ ] **Improve code documentation** - Add docstrings for all classes and methods
-- [ ] **Separate configuration from code** - Move all hard-coded values to configuration files
+## Phase 3: Development Environment (Weeks 7-8)
+*Target: Clean development environment and improved developer experience*
 
-### Frontend Code Quality
-- [ ] **Standardize on TypeScript** - Convert all .jsx files to .tsx and add proper typing
-- [ ] **Implement proper state management** - Use React Context or Redux for global state
-- [ ] **Add PropTypes or TypeScript interfaces** - Properly type all component props
-- [ ] **Improve component organization** - Separate concerns and remove unused components
-- [ ] **Add consistent error handling** - Implement standard error handling patterns
-- [ ] **Fix accessibility issues** - Add proper ARIA labels and keyboard navigation
+### 3.1 Dependency Optimization
+- [ ] **Create minimal `requirements.txt`** - Reduce from 300+ to ~20 essential packages
+- [ ] **Pin all dependency versions** - Lock versions for stability and reproducibility
+- [ ] **Remove unused packages** - Eliminate bloat packages not used in codebase
+- [ ] **Resolve version conflicts** - Fix any remaining package compatibility issues
+- [ ] **Create `requirements-dev.txt`** - Separate development dependencies
+- [ ] **Add dependency vulnerability scanning** - Check for security issues in packages
+- [ ] **Create virtual environment automation** - Scripts for consistent venv setup
 
-### RAG Module Improvements
-- [ ] **Improve module separation** - Better separation of concerns between RAG components
-- [ ] **Add configuration abstraction** - Make models and parameters configurable
-- [ ] **Implement proper interfaces** - Add abstract base classes for extensibility
-- [ ] **Add comprehensive error recovery** - Handle model failures and connection issues
-- [ ] **Remove dead code** - Remove or properly implement commented code sections
-- [ ] **Add parameter validation** - Validate all input parameters to RAG pipeline
+### 3.2 TypeScript Standardization
+- [ ] **Convert `Upload.jsx` to `Upload.tsx`** - Migrate upload component to TypeScript
+- [ ] **Convert `Chat.jsx` to `Chat.tsx`** - Migrate chat component to TypeScript
+- [ ] **Convert `Message.jsx` to `Message.tsx`** - Migrate message component to TypeScript  
+- [ ] **Create TypeScript interfaces for API responses** - Type all backend API contracts
+- [ ] **Add TypeScript interfaces for component props** - Properly type all React props
+- [ ] **Enable TypeScript strict mode** - Turn on strict type checking
+- [ ] **Convert remaining .jsx files progressively** - Systematic migration of all components
 
-## Testing & Quality Assurance (Priority 4)
+### 3.3 Development Tooling
+- [ ] **Set up ESLint configuration** - Configure linting rules for consistent code style
+- [ ] **Add Prettier configuration** - Set up code formatting with consistent style
+- [ ] **Create pre-commit hooks** - Auto-format and validate code before commits
+- [ ] **Standardize npm scripts in `package.json`** - Consistent commands for development tasks
+- [ ] **Add Python code formatting (Black)** - Consistent Python code style
+- [ ] **Configure hot reload for backend** - Proper Flask development server with reload
+- [ ] **Create development environment documentation** - Clear setup instructions for new developers
 
-### Test Coverage
-- [ ] **Expand backend unit tests** - Achieve >80% test coverage for backend code
-- [ ] **Add integration tests** - Test complete RAG pipeline end-to-end
-- [ ] **Implement frontend testing** - Add comprehensive React component tests
-- [ ] **Add API endpoint tests** - Test all Flask routes with various scenarios
-- [ ] **Create performance tests** - Add load testing for critical endpoints
-- [ ] **Add security testing** - Implement security-focused test scenarios
+## Phase 4: User Experience Enhancement (Weeks 9-10)
+*Target: Professional UI/UX and advanced contract Q&A features*
 
-### Test Infrastructure
-- [ ] **Set up CI/CD pipeline** - Automate testing and deployment
-- [ ] **Add test data management** - Create consistent test datasets
-- [ ] **Implement test database** - Separate test data from development data
-- [ ] **Add mock services** - Proper mocking for external dependencies
-- [ ] **Create testing documentation** - Document testing procedures and standards
-- [ ] **Add regression testing** - Automated regression test suite
+### 4.1 Interface Improvements
+- [ ] **Add loading indicators to `Chat.jsx`** - Show progress during AI processing
+- [ ] **Implement error display component** - Graceful error messages with recovery suggestions
+- [ ] **Add document processing progress bar** - Visual feedback during file upload/processing
+- [ ] **Implement markdown rendering for AI responses** - Proper formatting of AI answers
+- [ ] **Add mobile-responsive design to chat interface** - Optimize for mobile devices
+- [ ] **Create professional loading animations** - Replace basic "Loading..." text
+- [ ] **Add typing indicators** - Show when AI is "thinking" about response
 
-## DevOps & Infrastructure (Priority 5)
+### 4.2 Document Management
+- [ ] **Create document management interface** - View, delete, and reprocess uploaded files
+- [ ] **Implement conversation history persistence** - Store and retrieve chat sessions
+- [ ] **Add multi-document upload support** - Handle multiple files in single session
+- [ ] **Create document preview component** - Show snippets of source documents
+- [ ] **Add conversation search functionality** - Search through chat history
+- [ ] **Implement document metadata display** - Show file details (size, type, upload date)
+- [ ] **Add conversation export feature** - Export chat sessions to PDF/text
 
-### Deployment & Containerization
-- [ ] **Create Dockerfile** - Containerize the application for consistent deployment
-- [ ] **Add Docker Compose** - Orchestrate multi-service deployment
-- [ ] **Implement health checks** - Add health check endpoints for monitoring
-- [ ] **Create deployment scripts** - Automate deployment process
-- [ ] **Add environment management** - Separate dev/staging/prod configurations
-- [ ] **Implement secrets management** - Secure handling of API keys and credentials
+### 4.3 Advanced Features
+- [ ] **Implement citation support** - Reference specific document sections in responses
+- [ ] **Add confidence scoring display** - Show AI confidence levels for answers
+- [ ] **Create query suggestion system** - Suggest relevant questions based on document
+- [ ] **Add document comparison feature** - Compare content across multiple documents
+- [ ] **Implement conversation branching** - Handle multiple conversation threads
+- [ ] **Add response regeneration** - Allow users to request alternative responses
+- [ ] **Create question templates for contracts** - Pre-built questions for common contract analysis
 
-### Monitoring & Observability
-- [ ] **Add application monitoring** - Implement APM with metrics and traces
-- [ ] **Create logging aggregation** - Centralized logging with search capabilities
-- [ ] **Add performance monitoring** - Track response times and resource usage
-- [ ] **Implement alerting** - Alert on errors and performance issues
-- [ ] **Add user analytics** - Track usage patterns and feature adoption
-- [ ] **Create operational dashboards** - Real-time system health visibility
+## Phase 5: Testing & Quality Assurance (Weeks 11-12)
+*Target: Production-ready testing and monitoring infrastructure*
 
-### Database & Storage
-- [ ] **Implement proper database** - Replace file-based storage with proper database
-- [ ] **Add database migrations** - Versioned database schema management
-- [ ] **Implement backup strategy** - Regular backups of critical data
-- [ ] **Add data retention policies** - Manage data lifecycle and cleanup
-- [ ] **Optimize vector storage** - Improve ChromaDB performance and reliability
-- [ ] **Add distributed storage support** - Scale storage for production use
+### 5.1 Comprehensive Test Suite
+- [ ] **Expand `backend/test_server.py`** - Achieve >80% coverage for Flask endpoints
+- [ ] **Create `backend/test_rag_pipeline.py`** - Test complete RAG pipeline end-to-end
+- [ ] **Add performance tests** - Verify <2s response time requirement
+- [ ] **Expand frontend tests in `__tests__/`** - Comprehensive React component testing
+- [ ] **Create integration test suite** - Test frontend-backend interaction
+- [ ] **Add security test scenarios** - Test for XSS, injection, and other vulnerabilities
+- [ ] **Create load testing scripts** - Test concurrent user scenarios
 
-## User Experience & Features (Priority 6)
+### 5.2 Continuous Integration
+- [ ] **Set up GitHub Actions workflow** - Automate testing on every commit
+- [ ] **Create test environment configuration** - Separate test database and settings
+- [ ] **Add code quality gates** - Prevent merging failing tests or poor quality code
+- [ ] **Implement automated deployment to staging** - CI/CD pipeline for staging environment
+- [ ] **Add test result reporting** - Clear test failure notifications and reports
+- [ ] **Create automated security scans** - Check for vulnerabilities on each build
+- [ ] **Add performance regression testing** - Detect performance degradation automatically
 
-### User Interface Improvements
-- [ ] **Improve chat interface** - Better message formatting and conversation flow
-- [ ] **Add file management** - Interface for managing uploaded documents
-- [ ] **Implement user sessions** - Persistent user sessions and chat history
-- [ ] **Add dark mode support** - Theme switching capability
-- [ ] **Improve mobile responsiveness** - Better mobile user experience
-- [ ] **Add accessibility features** - Screen reader support and keyboard navigation
-
-### Feature Enhancements
-- [ ] **Support multiple file uploads** - Upload and process multiple documents
-- [ ] **Add document comparison** - Compare content across multiple documents
-- [ ] **Implement document search** - Search within uploaded documents
-- [ ] **Add export functionality** - Export chat sessions and analysis results
-- [ ] **Create document summarization** - Auto-generate document summaries
-- [ ] **Add citation support** - Reference specific document sections in responses
-
-### Advanced RAG Features
-- [ ] **Implement hybrid retrieval** - Combine keyword and semantic search
-- [ ] **Add query expansion** - Enhance user queries for better results
-- [ ] **Support document updates** - Update existing documents without full reindex
-- [ ] **Add confidence scoring** - Display confidence levels for AI responses
-- [ ] **Implement fact checking** - Verify AI responses against source documents
-- [ ] **Add multi-language support** - Process and respond in multiple languages
-
-## Documentation & Maintenance (Priority 7)
-
-### Technical Documentation
-- [ ] **Create API documentation** - Complete API reference with examples
-- [ ] **Write deployment guide** - Step-by-step deployment instructions
-- [ ] **Add troubleshooting guide** - Common issues and solutions
-- [ ] **Document RAG architecture** - Detailed system architecture documentation
-- [ ] **Create contribution guidelines** - Guidelines for code contributions
-- [ ] **Add performance tuning guide** - Optimization recommendations
-
-### User Documentation
-- [ ] **Write user manual** - Complete user guide for end users
-- [ ] **Create video tutorials** - Screen recordings for common workflows
-- [ ] **Add FAQ section** - Frequently asked questions and answers
-- [ ] **Document best practices** - Recommendations for effective document Q&A
-- [ ] **Create admin guide** - System administration and maintenance guide
-- [ ] **Add release notes template** - Standardized release documentation
+### 5.3 Monitoring & Observability
+- [ ] **Implement application metrics collection** - Track response times, error rates, usage
+- [ ] **Add Ollama performance monitoring** - Monitor model performance and resource usage
+- [ ] **Create error tracking and alerting** - Automated error reporting system
+- [ ] **Add user analytics tracking** - Track feature usage and conversation patterns
+- [ ] **Implement health check endpoints** - `/health` endpoint for monitoring systems
+- [ ] **Create operational dashboard** - Real-time system health visibility
+- [ ] **Add log aggregation and search** - Centralized logging with search capabilities
 
 ---
 
-## Implementation Notes
+## Implementation Guidelines
 
-### Task Prioritization
-- **Priority 1 (Critical)**: Security vulnerabilities and system stability issues that must be fixed immediately
-- **Priority 2 (High)**: Performance issues that significantly impact user experience  
-- **Priority 3 (Medium)**: Code quality improvements that enhance maintainability
-- **Priority 4 (Medium)**: Testing and quality assurance improvements
-- **Priority 5 (Low)**: Infrastructure and deployment improvements
-- **Priority 6 (Low)**: User experience and feature enhancements
-- **Priority 7 (Lowest)**: Documentation and maintenance tasks
+### Task Execution Order
+Tasks within each phase can be executed in parallel by different team members, but phases should be completed sequentially to maintain system stability.
 
-### Estimated Timeline
-- **Phase 1 (Weeks 1-2)**: Critical security and stability fixes (Priority 1)
-- **Phase 2 (Weeks 3-4)**: Performance optimizations (Priority 2)  
-- **Phase 3 (Weeks 5-6)**: Code quality improvements (Priority 3)
-- **Phase 4 (Weeks 7-8)**: Testing and CI/CD setup (Priority 4)
-- **Phase 5 (Weeks 9-10)**: DevOps and infrastructure (Priority 5)
-- **Phase 6 (Weeks 11-12)**: Feature enhancements (Priority 6)
-- **Phase 7 (Ongoing)**: Documentation and maintenance (Priority 7)
+### Success Criteria per Phase
+- **Phase 1**: Q&A response time <2s (currently 30s+)
+- **Phase 2**: Zero security vulnerabilities, proper session management
+- **Phase 3**: <20 dependencies, TypeScript coverage >50%
+- **Phase 4**: Professional UI, advanced contract features
+- **Phase 5**: >80% test coverage, full monitoring
 
-### Success Metrics
-- Zero known security vulnerabilities
-- >95% uptime and stability
-- <2 second response times for document queries
-- >80% test coverage across all components
-- Complete API and user documentation
-- Successful production deployment capability
+### Risk Mitigation
+- Test each change thoroughly before moving to next phase
+- Maintain backward compatibility during transitions
+- Keep detailed rollback plans for each major change
+- Monitor performance continuously during Phase 1 optimizations
 
-**Total Tasks: 97** | **Estimated Effort: 3-4 months** | **Team Size: 2-3 developers**
+### Resource Allocation
+- **Phase 1-2**: Focus full team on critical performance and security fixes
+- **Phase 3**: Split team between backend (dependencies) and frontend (TypeScript)
+- **Phase 4-5**: Parallel development of features and testing infrastructure
+
+**Total Tasks: 89** | **Timeline: 12 weeks** | **Team: 2-3 developers**
+
+*For detailed technical specifications and rationale for each improvement, refer to `docs/plan.md`*
