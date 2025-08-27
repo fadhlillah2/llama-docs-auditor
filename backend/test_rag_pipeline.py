@@ -9,10 +9,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Mock the dependencies that might not be installed
-sys.modules['langchain_community'] = MagicMock()
-sys.modules['langchain_community.document_loaders'] = MagicMock()
-sys.modules['langchain'] = MagicMock()
-sys.modules['langchain.retrievers'] = MagicMock()
+# sys.modules['langchain_community'] = MagicMock()
+# sys.modules['langchain_community.document_loaders'] = MagicMock()
+# sys.modules['langchain'] = MagicMock()
+# sys.modules['langchain.retrievers'] = MagicMock()
 
 try:
     from rag.rag_pipeline import RAGPipeline

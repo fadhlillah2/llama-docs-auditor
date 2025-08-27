@@ -32,7 +32,7 @@ Successfully deployed a RAG-based contract Q&A system with Flask backend and Nex
 - **Dependencies**: Installed via `npm install`
 
 ### ✅ **Backend (Flask)**
-- **URL**: http://127.0.0.1:8080
+- **URL**: http://127.0.0.1:8081
 - **Status**: Running successfully
 - **Features**: 
   - File upload endpoint (`/upload_file`)

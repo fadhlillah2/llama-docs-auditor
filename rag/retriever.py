@@ -1,11 +1,14 @@
 import gc
 import time
+import re
+from collections import Counter
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import BaseRetriever, Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Set
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 class SimpleRetriever(BaseRetriever):
     """Custom retriever using cosine similarity with performance monitoring."""
@@ -17,11 +20,16 @@ class SimpleRetriever(BaseRetriever):
         self._chunks = []
         self._embeddings = []
         self._query_cache: Dict[str, List[Document]] = {}
+        self._tfidf_vectorizer = None
+        self._tfidf_matrix = None
         self._performance_stats = {
             'setup_time': 0,
             'total_queries': 0,
             'avg_query_time': 0,
-            'cache_hits': 0
+            'cache_hits': 0,
+            'semantic_searches': 0,
+            'keyword_searches': 0,
+            'hybrid_searches': 0
         }
         self._setup()
     
@@ -47,6 +55,10 @@ class SimpleRetriever(BaseRetriever):
             
             print(f"✓ Created embeddings for {len(self._embeddings)} chunks")
             
+            # Create TF-IDF vectorizer for keyword search
+            print("📊 Setting up hybrid search capabilities...")
+            self._setup_tfidf_search()
+            
             # Cleanup memory after embedding creation
             gc.collect()
             print("🧹 Memory cleanup completed")
@@ -57,6 +69,34 @@ class SimpleRetriever(BaseRetriever):
         self._performance_stats['setup_time'] = setup_time
         print(f"✓ Retriever setup completed in {setup_time:.2f}s")
     
+    def _setup_tfidf_search(self):
+        """Setup TF-IDF vectorizer for keyword-based search."""
+        try:
+            if not self._chunks:
+                return
+                
+            # Extract texts for TF-IDF
+            chunk_texts = [chunk.page_content for chunk in self._chunks]
+            
+            # Create TF-IDF vectorizer optimized for legal documents
+            self._tfidf_vectorizer = TfidfVectorizer(
+                max_features=5000,
+                stop_words='english',
+                ngram_range=(1, 2),  # Include bigrams for legal terms
+                min_df=2,  # Term must appear in at least 2 documents
+                max_df=0.8,  # Ignore terms that appear in >80% of documents
+                lowercase=True,
+                token_pattern=r'\b[A-Za-z][A-Za-z]+\b'  # Only alphabetic tokens
+            )
+            
+            self._tfidf_matrix = self._tfidf_vectorizer.fit_transform(chunk_texts)
+            print(f"✓ TF-IDF setup complete with {self._tfidf_matrix.shape[1]} features")
+            
+        except Exception as e:
+            print(f"⚠️ TF-IDF setup failed: {e}")
+            self._tfidf_vectorizer = None
+            self._tfidf_matrix = None
+    
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun = None) -> List[Document]:
         if not self._chunks or not self._embeddings:
             return []
@@ -64,44 +104,186 @@ class SimpleRetriever(BaseRetriever):
         query_start = time.time()
         
         # Check cache first
-        if query in self._query_cache:
+        cache_key = f"hybrid_{query}"
+        if cache_key in self._query_cache:
             self._performance_stats['cache_hits'] += 1
             self._performance_stats['total_queries'] += 1
             print(f"✓ Query result loaded from cache")
-            return self._query_cache[query]
+            return self._query_cache[cache_key]
         
-        # Get query embedding using caching if available
-        if hasattr(self._embedding, 'embed_query_cached'):
-            query_embedding = self._embedding.embed_query_cached(query)
-        else:
-            query_embedding = self._embedding.embed_query(query)
-        
-        # Calculate similarities
-        similarities = cosine_similarity([query_embedding], self._embeddings)[0]
-        
-        # Get top 4 most similar chunks with relevance threshold
-        top_indices = np.argsort(similarities)[-6:][::-1]  # Get top 6 for better selection
-        
-        # Filter by relevance threshold (0.3 is a reasonable threshold for contract documents)
-        relevant_docs = []
-        for idx in top_indices[:4]:  # Still return top 4
-            if similarities[idx] > 0.3:
-                relevant_docs.append(self._chunks[idx])
-        
-        # If no docs meet threshold, return the top 2 anyway
-        if not relevant_docs:
-            relevant_docs = [self._chunks[i] for i in top_indices[:2]]
+        # Use hybrid search combining semantic and keyword approaches
+        relevant_docs = self._hybrid_search(query)
         
         # Cache the result
-        self._query_cache[query] = relevant_docs
+        self._query_cache[cache_key] = relevant_docs
         
         # Update performance stats
         query_time = time.time() - query_start
         self._performance_stats['total_queries'] += 1
+        self._performance_stats['hybrid_searches'] += 1
         self._update_avg_query_time(query_time)
         
-        print(f"🔍 Retrieved {len(relevant_docs)} relevant documents in {query_time:.2f}s")
+        print(f"🔍 Hybrid search retrieved {len(relevant_docs)} relevant documents in {query_time:.2f}s")
         return relevant_docs
+    
+    def _hybrid_search(self, query: str, top_k: int = 4) -> List[Document]:
+        """Perform hybrid search combining semantic and keyword-based retrieval."""
+        
+        # 1. Semantic search using embeddings
+        semantic_results = self._semantic_search(query, top_k=8)  # Get more candidates
+        
+        # 2. Keyword search using TF-IDF (if available)
+        keyword_results = []
+        if self._tfidf_vectorizer and self._tfidf_matrix is not None:
+            keyword_results = self._keyword_search(query, top_k=8)
+        
+        # 3. Combine and rank results
+        if keyword_results:
+            combined_results = self._combine_search_results(semantic_results, keyword_results, query)
+            search_type = "hybrid"
+        else:
+            combined_results = semantic_results
+            search_type = "semantic-only"
+        
+        # 4. Apply contract-specific boosting
+        final_results = self._apply_contract_boosting(combined_results, query)
+        
+        print(f"🔍 {search_type} search: semantic={len(semantic_results)}, keyword={len(keyword_results)}, final={len(final_results)}")
+        
+        return final_results[:top_k]
+    
+    def _semantic_search(self, query: str, top_k: int = 8) -> List[tuple]:
+        """Perform semantic search using embeddings."""
+        try:
+            # Get query embedding using caching if available
+            if hasattr(self._embedding, 'embed_query_cached'):
+                query_embedding = self._embedding.embed_query_cached(query)
+            else:
+                query_embedding = self._embedding.embed_query(query)
+            
+            # Calculate similarities
+            similarities = cosine_similarity([query_embedding], self._embeddings)[0]
+            
+            # Get top results with scores
+            top_indices = np.argsort(similarities)[-top_k:][::-1]
+            
+            results = []
+            for idx in top_indices:
+                if similarities[idx] > 0.2:  # Lower threshold for semantic search
+                    results.append((self._chunks[idx], similarities[idx], 'semantic'))
+            
+            self._performance_stats['semantic_searches'] += 1
+            return results
+            
+        except Exception as e:
+            print(f"⚠️ Semantic search failed: {e}")
+            return []
+    
+    def _keyword_search(self, query: str, top_k: int = 8) -> List[tuple]:
+        """Perform keyword search using TF-IDF."""
+        try:
+            if not self._tfidf_vectorizer or self._tfidf_matrix is None:
+                return []
+            
+            # Transform query to TF-IDF space
+            query_vector = self._tfidf_vectorizer.transform([query])
+            
+            # Calculate TF-IDF similarities
+            tfidf_similarities = cosine_similarity(query_vector, self._tfidf_matrix)[0]
+            
+            # Get top results with scores
+            top_indices = np.argsort(tfidf_similarities)[-top_k:][::-1]
+            
+            results = []
+            for idx in top_indices:
+                if tfidf_similarities[idx] > 0.1:  # Threshold for keyword relevance
+                    results.append((self._chunks[idx], tfidf_similarities[idx], 'keyword'))
+            
+            self._performance_stats['keyword_searches'] += 1
+            return results
+            
+        except Exception as e:
+            print(f"⚠️ Keyword search failed: {e}")
+            return []
+    
+    def _combine_search_results(self, semantic_results: List[tuple], keyword_results: List[tuple], query: str) -> List[tuple]:
+        """Combine semantic and keyword search results with intelligent weighting."""
+        
+        # Create a dictionary to merge results by document
+        combined_scores = {}
+        
+        # Add semantic results (weight: 0.7)
+        for doc, score, search_type in semantic_results:
+            doc_id = id(doc)  # Use object id as unique identifier
+            combined_scores[doc_id] = {
+                'doc': doc,
+                'semantic_score': score * 0.7,
+                'keyword_score': 0.0,
+                'combined_score': score * 0.7
+            }
+        
+        # Add keyword results (weight: 0.3) and boost if already found semantically
+        for doc, score, search_type in keyword_results:
+            doc_id = id(doc)
+            keyword_score = score * 0.3
+            
+            if doc_id in combined_scores:
+                # Document found in both searches - boost its score
+                combined_scores[doc_id]['keyword_score'] = keyword_score
+                combined_scores[doc_id]['combined_score'] += keyword_score + 0.1  # Bonus for appearing in both
+            else:
+                # New document from keyword search
+                combined_scores[doc_id] = {
+                    'doc': doc,
+                    'semantic_score': 0.0,
+                    'keyword_score': keyword_score,
+                    'combined_score': keyword_score
+                }
+        
+        # Sort by combined score and return documents
+        sorted_results = sorted(combined_scores.values(), key=lambda x: x['combined_score'], reverse=True)
+        
+        return [(item['doc'], item['combined_score'], 'hybrid') for item in sorted_results]
+    
+    def _apply_contract_boosting(self, results: List[tuple], query: str) -> List[Document]:
+        """Apply contract-specific boosting to search results."""
+        
+        # Contract-specific keywords that should boost relevance
+        contract_keywords = {
+            'high': ['contract', 'agreement', 'terms', 'conditions', 'obligations', 'liability', 'breach'],
+            'medium': ['party', 'parties', 'shall', 'hereby', 'whereas', 'therefore', 'provision'],
+            'low': ['legal', 'law', 'court', 'dispute', 'jurisdiction', 'governing']
+        }
+        
+        query_lower = query.lower()
+        boosted_results = []
+        
+        for doc, score, search_type in results:
+            boost_factor = 1.0
+            doc_content_lower = doc.page_content.lower()
+            
+            # Apply keyword-based boosting
+            for level, keywords in contract_keywords.items():
+                for keyword in keywords:
+                    if keyword in query_lower and keyword in doc_content_lower:
+                        if level == 'high':
+                            boost_factor += 0.2
+                        elif level == 'medium':
+                            boost_factor += 0.1
+                        else:
+                            boost_factor += 0.05
+            
+            # Boost if document contains numbers (often important in contracts)
+            if re.search(r'\d+', query) and re.search(r'\d+', doc.page_content):
+                boost_factor += 0.1
+            
+            # Apply boost
+            final_score = score * boost_factor
+            boosted_results.append((doc, final_score, search_type))
+        
+        # Sort by final score and return documents only
+        boosted_results.sort(key=lambda x: x[1], reverse=True)
+        return [doc for doc, score, search_type in boosted_results]
     
     def _update_avg_query_time(self, new_time: float) -> None:
         """Update running average of query times."""

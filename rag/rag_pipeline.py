@@ -23,49 +23,170 @@ class RAGPipeline:
         print("📄 Starting optimized RAG pipeline...")
         start_time = time.time()
         
-        # Load documents
-        print("📥 Loading documents...")
-        loader = LoadDocuments(self.uploaded_file)
-        documents = loader.load_document()
-        print(f"✓ Loaded {len(documents)} documents")
+        try:
+            # Load documents with error recovery
+            print("📥 Loading documents...")
+            documents = self._load_documents_with_retry()
+            if not documents:
+                raise ValueError("No documents could be loaded")
+            print(f"✓ Loaded {len(documents)} documents")
+            
+            # Chunk documents for better retrieval - optimized for contracts
+            print("📝 Chunking documents...")
+            chunks = self._chunk_documents_with_validation(documents)
+            if not chunks:
+                raise ValueError("Document chunking failed")
+            print(f"✓ Created {len(chunks)} optimized chunks for contracts")
+            
+            # Initialize embedding creator with error recovery
+            print("🧠 Initializing embeddings with caching...")
+            embedding_creator = self._initialize_embeddings_with_retry()
+            
+            # Create retriever with parallel pre-warming
+            retriever = self._create_retriever_with_prewarm(chunks, embedding_creator)
+            
+            end_time = time.time()
+            pipeline_time = end_time - start_time
+            print(f"✓ Retriever Created Successfully with caching! Pipeline took {pipeline_time:.2f}s")
+            return retriever
+            
+        except Exception as e:
+            print(f"❌ RAG Pipeline failed: {e}")
+            # Attempt fallback pipeline with minimal functionality
+            return self._fallback_pipeline()
+    
+    def _load_documents_with_retry(self, max_retries: int = 3):
+        """Load documents with retry logic."""
+        for attempt in range(max_retries):
+            try:
+                loader = LoadDocuments(self.uploaded_file)
+                documents = loader.load_document()
+                if documents:
+                    return documents
+                print(f"⚠️ Attempt {attempt + 1}: No documents loaded")
+            except Exception as e:
+                print(f"⚠️ Attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    raise e
+                time.sleep(1)  # Brief delay before retry
+        return []
+    
+    def _chunk_documents_with_validation(self, documents):
+        """Chunk documents with validation."""
+        try:
+            chunk_documents = ChunkDocuments(documents)
+            chunks = chunk_documents.chunk_documents(chunk_size=800, chunk_overlap=100)
+            
+            # Validate chunks
+            valid_chunks = [chunk for chunk in chunks if chunk.page_content.strip()]
+            if len(valid_chunks) < len(chunks):
+                print(f"⚠️ Filtered out {len(chunks) - len(valid_chunks)} empty chunks")
+            
+            return valid_chunks
+            
+        except Exception as e:
+            print(f"⚠️ Chunking failed: {e}")
+            # Fallback: use documents as-is with basic splitting
+            print("🔄 Using fallback chunking...")
+            return documents[:50]  # Limit to prevent memory issues
+    
+    def _initialize_embeddings_with_retry(self, max_retries: int = 3):
+        """Initialize embeddings with retry logic."""
+        for attempt in range(max_retries):
+            try:
+                embedding_creator = EmbeddingsCreator()
+                # Test embeddings creation
+                test_embedding = embedding_creator.create_embeddings()
+                if test_embedding:
+                    return embedding_creator
+                    
+            except Exception as e:
+                print(f"⚠️ Embedding initialization attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    raise e
+                time.sleep(2)  # Longer delay for model issues
         
-        # Chunk documents for better retrieval - optimized for contracts
-        print("📝 Chunking documents...")
-        chunk_documents = ChunkDocuments(documents)
-        chunks = chunk_documents.chunk_documents(chunk_size=800, chunk_overlap=100)
-        print(f"✓ Created {len(chunks)} optimized chunks for contracts")
-        
-        # Initialize embedding creator in parallel with other operations
-        print("🧠 Initializing embeddings with caching...")
-        embedding_creator = EmbeddingsCreator()
-        
-        # Pre-warm the Ollama model to avoid cold start during retrieval
+        raise RuntimeError("Failed to initialize embeddings after retries")
+    
+    def _create_retriever_with_prewarm(self, chunks, embedding_creator):
+        """Create retriever with parallel pre-warming."""
         def prewarm_model():
             try:
                 embedding_creator.create_embeddings()
                 print("✓ Ollama model pre-warmed")
+                return True
             except Exception as e:
                 print(f"⚠️ Model pre-warming failed: {e}")
+                return False
         
         # Run model pre-warming in background while setting up retriever
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            prewarm_future = executor.submit(prewarm_model)
+        try:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                prewarm_future = executor.submit(prewarm_model)
+                
+                # Use chunked documents for better retrieval
+                retriever = Retriever(chunks, embedding_creator, self.vector_db_path).get_retriever()
+                
+                # Wait for pre-warming to complete (with timeout)
+                try:
+                    prewarm_result = prewarm_future.result(timeout=30)
+                    if not prewarm_result:
+                        print("⚠️ Pre-warming failed, but continuing with retriever")
+                except Exception as e:
+                    print(f"⚠️ Pre-warming timeout or failed: {e}")
+                
+                return retriever
+                
+        except Exception as e:
+            print(f"⚠️ Retriever creation failed: {e}")
+            raise e
+    
+    def _fallback_pipeline(self):
+        """Fallback pipeline with minimal functionality."""
+        print("🔄 Starting fallback RAG pipeline...")
+        try:
+            # Simple document loading without chunking
+            loader = LoadDocuments(self.uploaded_file)
+            documents = loader.load_document()
             
-            # Use chunked documents for better retrieval
-            retriever = Retriever(chunks, embedding_creator, self.vector_db_path).get_retriever()
+            if not documents:
+                print("❌ Fallback: No documents available")
+                return None
             
-            # Wait for pre-warming to complete
-            prewarm_future.result()
-        
-        end_time = time.time()
-        pipeline_time = end_time - start_time
-        print(f"✓ Retriever Created Successfully with caching! Pipeline took {pipeline_time:.2f}s")
-        return retriever
+            # Use first few documents only
+            limited_docs = documents[:10]  # Limit for performance
+            print(f"🔄 Using fallback with {len(limited_docs)} documents")
+            
+            # Simple embedding without caching
+            from langchain_ollama import OllamaEmbeddings
+            simple_embedding = OllamaEmbeddings(
+                model="qwen3:1.7b",
+                base_url="http://localhost:11434"
+            )
+            
+            # Create basic retriever
+            retriever = Retriever(limited_docs, simple_embedding, self.vector_db_path).get_retriever()
+            print("✓ Fallback retriever created")
+            return retriever
+            
+        except Exception as e:
+            print(f"❌ Fallback pipeline also failed: {e}")
+            return None
     
     def qa_chain(self):
+        """Create optimized QA chain with context window management."""
         chat_model = ChatModel(OLLAMA_MODEL_NAME).initialize_chat_model()
         retriever = self.pipeline()
-        conversation_chain = ConversationChain().create_retrieval_qa_chain(chat_model,retriever)
+        
+        if not retriever:
+            print("❌ No retriever available, cannot create QA chain")
+            return None
+            
+        # Create conversation chain with model-specific optimizations
+        conversation_chain_creator = ConversationChain(model_name=OLLAMA_MODEL_NAME)
+        conversation_chain = conversation_chain_creator.create_retrieval_qa_chain(chat_model, retriever)
+        
+        print(f"✓ QA chain created with context optimization for {OLLAMA_MODEL_NAME}")
         return conversation_chain
 
 

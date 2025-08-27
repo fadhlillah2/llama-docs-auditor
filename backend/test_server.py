@@ -10,14 +10,14 @@ import io
 sys.path.insert(0, os.path.dirname(__file__))
 
 # Mock the dependencies that might not be installed
-sys.modules['langchain_community'] = MagicMock()
-sys.modules['langchain_community.document_loaders'] = MagicMock()
-sys.modules['langchain'] = MagicMock()
-sys.modules['langchain.retrievers'] = MagicMock()
-sys.modules['langchain.retrievers.document_compressors'] = MagicMock()
-sys.modules['flask_cors'] = MagicMock()
-sys.modules['dotenv'] = MagicMock()
-sys.modules['rag_pipeline'] = MagicMock()
+# sys.modules['langchain_community'] = MagicMock()
+# sys.modules['langchain_community.document_loaders'] = MagicMock()
+# sys.modules['langchain'] = MagicMock()
+# sys.modules['langchain.retrievers'] = MagicMock()
+# sys.modules['langchain.retrievers.document_compressors'] = MagicMock()
+# sys.modules['flask_cors'] = MagicMock()
+# sys.modules['dotenv'] = MagicMock()
+# sys.modules['rag_pipeline'] = MagicMock()
 
 # Import after mocking
 try:

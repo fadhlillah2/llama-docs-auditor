@@ -13,7 +13,7 @@ function Upload() {
     console.log("File uploading...");
     const formData = new FormData(e.target);
 
-    await fetch("http://127.0.0.1:8080/upload_file", {
+    await fetch("http://127.0.0.1:8081/upload_file", {
       method: "POST",
       body: formData,
     })
