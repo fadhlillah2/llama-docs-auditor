@@ -6,29 +6,29 @@
 *Target: Resolve 30s+ response time bottleneck to <2s as outlined in plan.md*
 
 ### 1.1 Embedding Pipeline Optimization
-- [ ] **Create embedding cache directory structure** - Set up `../cache/embeddings/` directory for persistent caching
-- [ ] **Implement embedding cache in `rag/embedding.py`** - Add disk-based caching to avoid recomputation of identical documents
-- [ ] **Add embedding batch processing** - Process document chunks in batches instead of individually
-- [ ] **Convert embedding creation to async/await** - Implement non-blocking embedding operations
-- [ ] **Uncomment and implement document chunking** - Enable proper text chunking in `rag/chunk_documents.py`
-- [ ] **Add chunk size optimization** - Configure optimal chunk sizes for contract documents
-- [ ] **Implement embedding deduplication** - Avoid processing identical text chunks multiple times
+- [x] **Create embedding cache directory structure** - Set up `../cache/embeddings/` directory for persistent caching
+- [x] **Implement embedding cache in `rag/embedding.py`** - Add disk-based caching to avoid recomputation of identical documents
+- [x] **Add embedding batch processing** - Process document chunks in batches instead of individually
+- [x] **Convert embedding creation to async/await** - Implement non-blocking embedding operations
+- [x] **Uncomment and implement document chunking** - Enable proper text chunking in `rag/chunk_documents.py`
+- [x] **Add chunk size optimization** - Configure optimal chunk sizes for contract documents
+- [x] **Implement embedding deduplication** - Avoid processing identical text chunks multiple times
 
 ### 1.2 RAG Pipeline Optimization  
-- [ ] **Implement pipeline parallelization in `rag_pipeline.py`** - Process document loading, chunking, and embedding in parallel
+- [x] **Implement pipeline parallelization in `rag_pipeline.py`** - Process document loading, chunking, and embedding in parallel
 - [ ] **Add hybrid search capability** - Combine semantic and keyword search for better retrieval relevance
 - [ ] **Optimize context window for Ollama model** - Configure optimal context size for qwen3:1.7b model
-- [ ] **Implement memory management** - Add proper cleanup and memory pooling for long sessions
-- [ ] **Add pipeline performance monitoring** - Track processing times for each pipeline stage
-- [ ] **Implement smart retrieval ranking** - Improve relevance scoring for retrieved chunks
+- [x] **Implement memory management** - Add proper cleanup and memory pooling for long sessions
+- [x] **Add pipeline performance monitoring** - Track processing times for each pipeline stage
+- [x] **Implement smart retrieval ranking** - Improve relevance scoring for retrieved chunks
 - [ ] **Add pipeline error recovery** - Handle failures gracefully without full restart
 
 ### 1.3 Vector Store Optimization
 - [ ] **Implement ChromaDB connection pooling** - Maintain persistent database connections
 - [ ] **Configure optimal ChromaDB indices** - Set up indices optimized for contract document queries
-- [ ] **Add vector query result caching** - Cache results for repeated similar questions
+- [x] **Add vector query result caching** - Cache results for repeated similar questions
 - [ ] **Implement batch vector operations** - Group multiple database operations together
-- [ ] **Add vector store performance monitoring** - Track query times and cache hit rates
+- [x] **Add vector store performance monitoring** - Track query times and cache hit rates
 - [ ] **Optimize ChromaDB collection settings** - Configure distance metrics and indexing for contracts
 - [ ] **Implement vector store cleanup** - Manage storage space and old embeddings
 
