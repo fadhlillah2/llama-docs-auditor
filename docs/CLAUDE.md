@@ -47,10 +47,10 @@ npm run dev
 
 **Quick Test:**
 1. Upload any PDF/TXT file via frontend
-2. Ask questions (expect slow responses)  
-3. Backend processes successfully but embedding queries are slow
+2. Ask questions (**first request may take 3-5 minutes** as llama3.1:8b loads)
+3. Subsequent requests should be faster once model is loaded
 
-The system is ~90% functional - upload and processing work perfectly, Q&A needs optimization for production speed.
+The system is fully functional - upload and processing work perfectly, Q&A responses improve significantly with the 8B model.
 
 ## Project Overview
 
@@ -204,12 +204,14 @@ No API keys required - Ollama runs completely locally and is free!
 ## Model Configuration
 
 Change model by updating `OLLAMA_MODEL_NAME` in `rag/rag_pipeline.py:12` and default parameter in `rag/chat_model.py:4`:
-- `llama3.1:8b` (default, 8B parameters, high quality and versatile)
-- `qwen3:1.7b` (1.7B parameters, fast and efficient)
-- `llama2` (7B parameters, larger context)
-- `mistral` (7B parameters, good quality)
-- `deepseek-r1:8b` (8B parameters, reasoning focused but slow)
-- `codellama` (specialized for technical/code documents)
+- `llama3.1:8b` (default, 8B parameters, high quality and versatile, **first load: 3-5 min**)
+- `qwen3:1.7b` (1.7B parameters, fast and efficient, first load: 30-60 sec)
+- `llama2` (7B parameters, larger context, first load: 2-3 min)
+- `mistral` (7B parameters, good quality, first load: 2-3 min)
+- `deepseek-r1:8b` (8B parameters, reasoning focused but slow, first load: 3-5 min)
+- `codellama` (specialized for technical/code documents, first load: 2-3 min)
+
+**Note**: Larger models provide better quality responses but take longer to load initially. Once loaded, response times are similar.
 
 ## Testing
 

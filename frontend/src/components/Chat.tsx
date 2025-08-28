@@ -193,9 +193,9 @@ function Chat(): JSX.Element {
       prompt: prompt,
     };
 
-    // Set timeout to 2 minutes for Ollama model loading
+    // Set timeout to 8 minutes for llama3.1:8b model loading (larger model needs more time)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    const timeoutId = setTimeout(() => controller.abort(), 480000); // 8 minutes
 
     try {
       const response = await fetch("http://127.0.0.1:8081/ask_ai", {
@@ -248,7 +248,7 @@ function Chat(): JSX.Element {
       
       const error = err as Error;
       const errorMessage = error.name === 'AbortError' 
-        ? "Request timed out. The AI model may be loading. Please try again in a moment."
+        ? "Request timed out. The llama3.1:8b model is loading (this can take 3-5 minutes on first use). Please wait a moment and try again."
         : `Error: ${error.message || 'Failed to get response'}`;
       
       // Check if it's a connection error
@@ -378,7 +378,7 @@ function Chat(): JSX.Element {
                 <br />
                 <small>
                   {isLoading ? (
-                    <span className="text-yellow-400">Thinking...</span>
+                    <span className="text-yellow-400">Processing with llama3.1:8b (may take 3-5 min on first use)...</span>
                   ) : isConnected ? (
                     <span className="text-green-400">Online</span>
                   ) : (

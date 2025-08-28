@@ -9,5 +9,7 @@ class ChatModel:
         return OllamaLLM(
             model=self.model_name,
             temperature=0.0,
-            base_url="http://localhost:11434"
+            base_url="http://localhost:11434",
+            timeout=600,  # 10 minutes timeout for llama3.1:8b model loading
+            keep_alive="15m"  # Keep model loaded for 15 minutes to avoid reloading
         )
