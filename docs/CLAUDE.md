@@ -125,8 +125,8 @@ npm run lint
 
 2. **Pull the model**:
 ```bash
-# Pull the qwen3:1.7b model (default for this project)
-ollama pull qwen3:1.7b
+# Pull the llama3.1:8b model (default for this project)
+ollama pull llama3.1:8b
 
 # Other available models:
 # ollama pull llama2
@@ -203,8 +203,9 @@ No API keys required - Ollama runs completely locally and is free!
 
 ## Model Configuration
 
-Change model by updating `OLLAMA_MODEL_NAME` in both `backend/server.py:23` and `rag/rag_pipeline.py:11`:
-- `qwen3:1.7b` (default, 1.7B parameters, fast and efficient)
+Change model by updating `OLLAMA_MODEL_NAME` in `rag/rag_pipeline.py:12` and default parameter in `rag/chat_model.py:4`:
+- `llama3.1:8b` (default, 8B parameters, high quality and versatile)
+- `qwen3:1.7b` (1.7B parameters, fast and efficient)
 - `llama2` (7B parameters, larger context)
 - `mistral` (7B parameters, good quality)
 - `deepseek-r1:8b` (8B parameters, reasoning focused but slow)

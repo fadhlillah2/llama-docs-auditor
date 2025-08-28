@@ -290,7 +290,7 @@ function Chat(): JSX.Element {
 
   // Tech stack data with proper typing
   const techStack: TechStackItem[] = [
-    { category: "Large Language Model", technologies: "Ollama qwen3:1.7b, Langchain" },
+    { category: "Large Language Model", technologies: "Ollama llama3.1:8b, Langchain" },
     { category: "Chunking", technologies: "RecursiveCharacterTextSplitter" },
     { category: "Vector Store", technologies: "ChromaDB with connection pooling" },
     { category: "Retriever", technologies: "Hybrid Search (Semantic + Keyword)" },

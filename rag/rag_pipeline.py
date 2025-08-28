@@ -9,7 +9,7 @@ from conversation_chain import ConversationChain
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv()
-OLLAMA_MODEL_NAME = 'qwen3:1.7b'
+OLLAMA_MODEL_NAME = 'llama3.1:8b'
 load_dotenv(find_dotenv())
 
 class RAGPipeline:

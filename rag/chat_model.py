@@ -1,7 +1,7 @@
 from langchain_ollama import OllamaLLM
 
 class ChatModel:
-    def __init__(self, model_name="qwen3:1.7b"):
+    def __init__(self, model_name="llama3.1:8b"):
         self.model_name = model_name
     
     def initialize_chat_model(self):
