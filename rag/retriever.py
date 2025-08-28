@@ -303,8 +303,8 @@ class Retriever:
         self.documents = documents
         self.embedding = embedding
         self.persist_directory = persist_directory
+        self._use_chromadb = True  # Feature flag for ChromaDB usage
         
-
     def get_retriever(self):
         try:
             if not self.documents:
@@ -313,10 +313,18 @@ class Retriever:
                 
             print(f"Processing {len(self.documents)} documents")
             
-            # Create simple retriever
-            retriever = SimpleRetriever(self.documents, self.embedding)
+            # Try ChromaDB first for better performance and persistence
+            if self._use_chromadb:
+                chromadb_retriever = self._create_chromadb_retriever()
+                if chromadb_retriever:
+                    print("✓ Using ChromaDB-based retriever with connection pooling")
+                    return chromadb_retriever
+                else:
+                    print("⚠️ ChromaDB failed, falling back to in-memory retriever")
             
-            print("Retriever created successfully!")
+            # Fallback to simple in-memory retriever
+            retriever = SimpleRetriever(self.documents, self.embedding)
+            print("✓ Using in-memory retriever")
             return retriever
             
         except Exception as e:
@@ -324,3 +332,135 @@ class Retriever:
             import traceback
             traceback.print_exc()
             return None
+    
+    def _create_chromadb_retriever(self):
+        """Create ChromaDB-based retriever with connection pooling."""
+        try:
+            from vector_store import VectorStore
+            
+            # Create enhanced vector store with pooling
+            vector_store = VectorStore(
+                documents=self.documents,
+                embedding=self.embedding,
+                persist_directory=self.persist_directory
+            )
+            
+            # Create the ChromaDB vector store
+            chromadb_store = vector_store.create_vector_store(
+                collection_name="contract_documents"
+            )
+            
+            if not chromadb_store:
+                return None
+            
+            # Optimize the collection for better performance
+            vector_store.optimize_collection()
+            
+            # Create ChromaDB-enhanced retriever
+            chromadb_retriever = ChromaDBEnhancedRetriever(
+                vector_store=chromadb_store,
+                vector_store_wrapper=vector_store,
+                fallback_retriever=SimpleRetriever(self.documents, self.embedding)
+            )
+            
+            return chromadb_retriever
+            
+        except ImportError as e:
+            print(f"⚠️ ChromaDB dependencies not available: {e}")
+            return None
+        except Exception as e:
+            print(f"⚠️ ChromaDB retriever creation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+
+class ChromaDBEnhancedRetriever(BaseRetriever):
+    """Enhanced retriever using ChromaDB with fallback to in-memory search."""
+    
+    def __init__(self, vector_store, vector_store_wrapper, fallback_retriever):
+        super().__init__()
+        self.vector_store = vector_store
+        self.vector_store_wrapper = vector_store_wrapper
+        self.fallback_retriever = fallback_retriever
+        self._query_cache = {}
+        self._performance_stats = {
+            'chromadb_queries': 0,
+            'fallback_queries': 0,
+            'cache_hits': 0,
+            'avg_query_time': 0,
+            'total_queries': 0
+        }
+    
+    def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
+        """Get relevant documents using ChromaDB with fallback."""
+        query_start = time.time()
+        self._performance_stats['total_queries'] += 1
+        
+        # Check cache first
+        cache_key = f"chromadb_{query}"
+        if cache_key in self._query_cache:
+            self._performance_stats['cache_hits'] += 1
+            print("✓ Query result loaded from cache")
+            return self._query_cache[cache_key]
+        
+        try:
+            # Try ChromaDB search first
+            results = self.vector_store_wrapper.similarity_search_with_stats(query, k=4)
+            
+            if results:
+                self._performance_stats['chromadb_queries'] += 1
+                self._query_cache[cache_key] = results
+                
+                query_time = time.time() - query_start
+                self._update_avg_query_time(query_time)
+                
+                print(f"✓ ChromaDB search completed in {query_time:.3f}s")
+                return results
+            else:
+                print("⚠️ ChromaDB returned no results, trying fallback")
+                
+        except Exception as e:
+            print(f"⚠️ ChromaDB search failed: {e}, using fallback")
+        
+        # Fallback to in-memory retriever
+        try:
+            fallback_results = self.fallback_retriever._get_relevant_documents(query)
+            self._performance_stats['fallback_queries'] += 1
+            
+            # Cache fallback results too
+            self._query_cache[cache_key] = fallback_results
+            
+            query_time = time.time() - query_start
+            self._update_avg_query_time(query_time)
+            
+            print(f"✓ Fallback search completed in {query_time:.3f}s")
+            return fallback_results
+            
+        except Exception as e:
+            print(f"❌ Both ChromaDB and fallback searches failed: {e}")
+            return []
+    
+    def _update_avg_query_time(self, new_time: float):
+        """Update running average of query times."""
+        total_queries = self._performance_stats['total_queries']
+        current_avg = self._performance_stats['avg_query_time']
+        
+        new_avg = ((current_avg * (total_queries - 1)) + new_time) / total_queries
+        self._performance_stats['avg_query_time'] = new_avg
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get combined performance statistics."""
+        stats = self._performance_stats.copy()
+        
+        # Add vector store stats if available
+        if hasattr(self.vector_store_wrapper, 'get_performance_stats'):
+            chromadb_stats = self.vector_store_wrapper.get_performance_stats()
+            stats['chromadb_stats'] = chromadb_stats
+        
+        # Add fallback stats if available  
+        if hasattr(self.fallback_retriever, 'get_performance_stats'):
+            fallback_stats = self.fallback_retriever.get_performance_stats()
+            stats['fallback_stats'] = fallback_stats
+        
+        return stats

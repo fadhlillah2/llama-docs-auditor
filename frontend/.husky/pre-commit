@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged for frontend files
+npx lint-staged
+
+# Check TypeScript compilation
+npm run type-check
+
+# Check if there are any Python files in the commit and run Black
+if git diff --cached --name-only | grep -E "\.(py)$" > /dev/null; then
+    echo "🐍 Running Python formatting checks..."
+    if command -v black >/dev/null 2>&1; then
+        black --check --diff $(git diff --cached --name-only --diff-filter=ACM | grep -E "\.(py)$")
+    else
+        echo "⚠️ Black not installed, skipping Python formatting check"
+    fi
+fi
+
+echo "✅ Pre-commit checks completed successfully!"
