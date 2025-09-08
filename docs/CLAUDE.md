@@ -2,55 +2,62 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Quick Start Guide
+## Quick Start Guide - SIMPLIFIED ⚡
 
-### Prerequisites
+### 🚀 One-Command Setup & Run
 ```bash
-# Install Ollama
-brew install ollama  # macOS
-# or download from https://ollama.ai
+# 1. Setup everything (one time only)
+./setup-project.sh
 
-# Pull required model
-ollama pull qwen3:1.7b
+# 2. Run the project (starts all services)
+./run-project.sh
 ```
 
-### Terminal Setup (3 terminals)
+That's it! The scripts handle everything automatically.
 
-**Terminal 1 - Ollama:**
-```bash
-ollama serve
-```
+### 📋 Manual Prerequisites (if needed)
+If the automated setup fails, ensure these are installed:
+- **Python 3.8+**: `python3 --version`
+- **Node.js 18+**: `node --version` 
+- **Ollama**: Download from https://ollama.ai
+  - macOS: `brew install ollama`
+  - Linux: `curl -fsSL https://ollama.ai/install.sh | sh`
 
-**Terminal 2 - Backend:**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install flask flask-cors langchain langchain-community langchain-ollama python-dotenv werkzeug pypdf ollama scikit-learn numpy
-cd backend
-python3 server.py
-```
-
-**Terminal 3 - Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Access Points
+### 🎯 Access Points
 - **Frontend**: http://localhost:3000
 - **Backend**: http://127.0.0.1:8081
 
-### Current Status
-✅ **Works**: File upload, document processing, UI  
-⚠️ **Issue**: Q&A responses timeout (~30s+) due to embedding bottleneck
+### ✅ Current Status - FULLY WORKING
+- ✅ **File upload**: Works perfectly
+- ✅ **Document processing**: Loads, chunks, creates embeddings
+- ✅ **Chat AI**: Fully functional with transformers dependency
+- ✅ **Session management**: Proper session-based state
+- ✅ **All dependencies**: Tested and verified
 
-**Quick Test:**
-1. Upload any PDF/TXT file via frontend
-2. Ask questions (**first request may take 3-5 minutes** as llama3.1:8b loads)
-3. Subsequent requests should be faster once model is loaded
+### 🧪 Quick Test
+1. Run `./run-project.sh`
+2. Open http://localhost:3000
+3. Upload any PDF/TXT file
+4. Ask questions about the document
+5. **First response takes 3-5 minutes** (model loading)
+6. Subsequent responses are fast!
 
-The system is fully functional - upload and processing work perfectly, Q&A responses improve significantly with the 8B model.
+### 🔧 What the Scripts Do
+
+**setup-project.sh:**
+- Creates Python virtual environment
+- Installs working dependencies (no conflicts!)
+- Pulls required Ollama models (llama3.1:8b, qwen3:1.7b)
+- Sets up frontend dependencies
+- Creates data directories
+
+**run-project.sh:**
+- Starts Ollama server
+- Starts backend (Flask API)
+- Starts frontend (Next.js)
+- Monitors all services
+- Provides status updates
+- Handles graceful shutdown with Ctrl+C
 
 ## Project Overview
 
@@ -77,41 +84,51 @@ High-Precision Contract Advisor RAG is a contract Q&A system using Retrieval-Aug
 - **Styling**: Tailwind CSS with Ionic React components
 - **State management**: Uses React hooks with Axios for API calls
 
-## Development Commands
+## Development Commands - UPDATED ✨
 
-### Backend Setup and Run
+### 🚀 Simplified Development Workflow
 ```bash
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Setup (one time only)
+./setup-project.sh
 
-# Install dependencies (essential packages only due to conflicts)
-pip install flask flask-cors langchain langchain-community python-dotenv werkzeug pypdf ollama
+# Development (daily use)
+./run-project.sh
 
-# Ensure Ollama is running (in separate terminal)
-ollama serve
+# That's it! All services start automatically
+```
 
-# Run backend server
+### 🛠️ Manual Development (Advanced)
+If you need to run services individually:
+
+**Backend:**
+```bash
+source .venv/bin/activate  # Use the created venv
 cd backend && python3 server.py
 ```
 
-### Frontend Setup and Run
+**Frontend:**
 ```bash
-# Install dependencies
-cd frontend && npm install
-
-# Development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Lint code
-npm run lint
+cd frontend
+npm run dev          # Development server
+npm run build        # Production build
+npm run lint         # Code linting
 ```
+
+**Ollama:**
+```bash
+ollama serve         # Start Ollama server
+ollama pull llama3.1:8b  # Pull main model
+ollama pull qwen3:1.7b   # Pull embedding model
+```
+
+### 📦 Dependencies - WORKING SET
+The project now uses `requirements-working.txt` with tested dependencies:
+- ✅ **Core**: flask, flask-cors, werkzeug, python-dotenv  
+- ✅ **LangChain**: langchain, langchain-community, langchain-ollama
+- ✅ **ML**: scikit-learn, numpy, transformers (critical!)
+- ✅ **Documents**: pypdf
+- ✅ **LLM**: ollama
+- ❌ **ChromaDB**: Excluded due to conflicts (uses in-memory fallback)
 
 ## Environment Configuration
 
