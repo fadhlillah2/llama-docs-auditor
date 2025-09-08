@@ -2,7 +2,7 @@ import os
 import time
 import threading
 from typing import Dict, Optional, List
-from langchain.vectorstores.chroma import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain.schema import Document
 import chromadb
 from chromadb.config import Settings
