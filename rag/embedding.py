@@ -52,7 +52,7 @@ class EmbeddingsCreator:
         """Creates embeddings from text using Ollama embeddings with caching."""
         if self._embeddings_model is None:
             try:
-                model_name = "qwen3:1.7b"
+                model_name = "nomic-embed-text:latest"
                 print(f"Creating Ollama embeddings with model: {model_name}")
                 self._embeddings_model = OllamaEmbeddings(
                     model=model_name,

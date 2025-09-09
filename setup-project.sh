@@ -128,22 +128,22 @@ fi
 # Pull required models
 print_status "Pulling Ollama models (this may take several minutes)..."
 
-# Pull the main model (llama3.1:8b)
-if ! ollama list | grep -q "llama3.1:8b"; then
-    print_status "Pulling llama3.1:8b model..."
-    ollama pull llama3.1:8b
-    print_success "llama3.1:8b model downloaded"
+# Pull the main model (llama3.2:3b-instruct-q4_0)
+if ! ollama list | grep -q "llama3.2:3b-instruct-q4_0"; then
+    print_status "Pulling llama3.2:3b-instruct-q4_0 model..."
+    ollama pull llama3.2:3b-instruct-q4_0
+    print_success "llama3.2:3b-instruct-q4_0 model downloaded"
 else
-    print_success "llama3.1:8b model already available"
+    print_success "llama3.2:3b-instruct-q4_0 model already available"
 fi
 
-# Pull the smaller model for embeddings (qwen3:1.7b)
-if ! ollama list | grep -q "qwen3:1.7b"; then
-    print_status "Pulling qwen3:1.7b model..."
-    ollama pull qwen3:1.7b
-    print_success "qwen3:1.7b model downloaded"
+# Pull the embedding model (nomic-embed-text)
+if ! ollama list | grep -q "nomic-embed-text:latest"; then
+    print_status "Pulling nomic-embed-text:latest model..."
+    ollama pull nomic-embed-text:latest
+    print_success "nomic-embed-text:latest model downloaded"
 else
-    print_success "qwen3:1.7b model already available"
+    print_success "nomic-embed-text:latest model already available"
 fi
 
 # 7. Create data directories

@@ -309,7 +309,7 @@ def test_qa_response_time():
 ### Risk Mitigation
 
 **Technical Risks**:
-- **Ollama Performance**: Test alternative models if qwen3:1.7b insufficient
+- **Ollama Performance**: Test alternative models if nomic-embed-text:latest insufficient
 - **ChromaDB Scaling**: Prepare migration to production vector database
 - **State Management**: Implement gradual migration from global state
 

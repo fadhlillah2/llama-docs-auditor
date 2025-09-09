@@ -193,9 +193,9 @@ function Chat(): JSX.Element {
       prompt: prompt,
     };
 
-    // Set timeout to 8 minutes for llama3.1:8b model loading (larger model needs more time)
+    // Set timeout to 5 minutes for llama3.2:3b-instruct-q4_0 model loading (smaller model loads faster)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 480000); // 8 minutes
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
 
     try {
       const response = await fetch("http://127.0.0.1:8081/ask_ai", {
@@ -248,7 +248,7 @@ function Chat(): JSX.Element {
       
       const error = err as Error;
       const errorMessage = error.name === 'AbortError' 
-        ? "Request timed out. The llama3.1:8b model is loading (this can take 3-5 minutes on first use). Please wait a moment and try again."
+        ? "Request timed out. The llama3.2:3b-instruct-q4_0 model is loading (this can take 1-2 minutes on first use). Please wait a moment and try again."
         : `Error: ${error.message || 'Failed to get response'}`;
       
       // Check if it's a connection error
@@ -290,7 +290,7 @@ function Chat(): JSX.Element {
 
   // Tech stack data with proper typing
   const techStack: TechStackItem[] = [
-    { category: "Large Language Model", technologies: "Ollama llama3.1:8b, Langchain" },
+    { category: "Large Language Model", technologies: "Ollama llama3.2:3b-instruct-q4_0, Langchain" },
     { category: "Chunking", technologies: "RecursiveCharacterTextSplitter" },
     { category: "Vector Store", technologies: "ChromaDB with connection pooling" },
     { category: "Retriever", technologies: "Hybrid Search (Semantic + Keyword)" },
@@ -378,7 +378,7 @@ function Chat(): JSX.Element {
                 <br />
                 <small>
                   {isLoading ? (
-                    <span className="text-yellow-400">Processing with llama3.1:8b (may take 3-5 min on first use)...</span>
+                    <span className="text-yellow-400">Processing with llama3.2:3b-instruct-q4_0 (may take 1-2 min on first use)...</span>
                   ) : isConnected ? (
                     <span className="text-green-400">Online</span>
                   ) : (

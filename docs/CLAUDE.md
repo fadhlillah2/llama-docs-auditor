@@ -47,7 +47,7 @@ If the automated setup fails, ensure these are installed:
 **setup-project.sh:**
 - Creates Python virtual environment
 - Installs working dependencies (no conflicts!)
-- Pulls required Ollama models (llama3.1:8b, qwen3:1.7b)
+- Pulls required Ollama models (llama3.2:3b-instruct-q4_0, nomic-embed-text:latest)
 - Sets up frontend dependencies
 - Creates data directories
 
@@ -117,8 +117,8 @@ npm run lint         # Code linting
 **Ollama:**
 ```bash
 ollama serve         # Start Ollama server
-ollama pull llama3.1:8b  # Pull main model
-ollama pull qwen3:1.7b   # Pull embedding model
+ollama pull llama3.2:3b-instruct-q4_0  # Pull main model
+ollama pull nomic-embed-text:latest   # Pull embedding model
 ```
 
 ### 📦 Dependencies - WORKING SET
@@ -142,8 +142,8 @@ The project now uses `requirements-working.txt` with tested dependencies:
 
 2. **Pull the model**:
 ```bash
-# Pull the llama3.1:8b model (default for this project)
-ollama pull llama3.1:8b
+# Pull the llama3.2:3b-instruct-q4_0 model (default for this project)
+ollama pull llama3.2:3b-instruct-q4_0
 
 # Other available models:
 # ollama pull llama2
@@ -209,7 +209,7 @@ No API keys required - Ollama runs completely locally and is free!
 
 1. **Port conflict**: Backend runs on 8081, not 8080 as documentation may suggest
 2. **Ollama not running**: Ensure `ollama serve` is running before starting backend
-3. **Model not available**: Run `ollama pull qwen3:1.7b` to download the model
+3. **Model not available**: Run `ollama pull nomic-embed-text:latest` to download the embedding model
 4. **Dependency conflicts**: Large requirements.txt with many packages - install essential ones manually:
    ```bash
    pip install flask flask-cors langchain langchain-community python-dotenv werkzeug pypdf ollama
@@ -221,8 +221,8 @@ No API keys required - Ollama runs completely locally and is free!
 ## Model Configuration
 
 Change model by updating `OLLAMA_MODEL_NAME` in `rag/rag_pipeline.py:12` and default parameter in `rag/chat_model.py:4`:
-- `llama3.1:8b` (default, 8B parameters, high quality and versatile, **first load: 3-5 min**)
-- `qwen3:1.7b` (1.7B parameters, fast and efficient, first load: 30-60 sec)
+- `llama3.2:3b-instruct-q4_0` (default, 3B parameters quantized, fast and efficient, **first load: 1-2 min**)
+- `nomic-embed-text:latest` (embedding model, fast and efficient, first load: 10-30 sec)
 - `llama2` (7B parameters, larger context, first load: 2-3 min)
 - `mistral` (7B parameters, good quality, first load: 2-3 min)
 - `deepseek-r1:8b` (8B parameters, reasoning focused but slow, first load: 3-5 min)
@@ -619,7 +619,7 @@ npm outdated
 ```bash
 # Essential model operations
 ollama list                    # List installed models
-ollama pull qwen3:1.7b        # Install default model
+ollama pull nomic-embed-text:latest        # Install embedding model
 ollama serve                  # Start Ollama server
 
 # Alternative models for different use cases

@@ -98,14 +98,14 @@ else
 fi
 
 # Verify models are available
-if ! ollama list | grep -q "llama3.1:8b"; then
-    print_warning "llama3.1:8b model not found. Pulling now..."
-    ollama pull llama3.1:8b
+if ! ollama list | grep -q "llama3.2:3b-instruct-q4_0"; then
+    print_warning "llama3.2:3b-instruct-q4_0 model not found. Pulling now..."
+    ollama pull llama3.2:3b-instruct-q4_0
 fi
 
-if ! ollama list | grep -q "qwen3:1.7b"; then
-    print_warning "qwen3:1.7b model not found. Pulling now..."  
-    ollama pull qwen3:1.7b
+if ! ollama list | grep -q "nomic-embed-text:latest"; then
+    print_warning "nomic-embed-text:latest model not found. Pulling now..."  
+    ollama pull nomic-embed-text:latest
 fi
 
 print_success "Ollama models ready"
@@ -163,7 +163,7 @@ echo ""
 print_header "🎉 All Services Running Successfully!"
 print_header "====================================="
 echo ""
-print_success "✅ Ollama:   Running with llama3.1:8b and qwen3:1.7b models"
+print_success "✅ Ollama:   Running with llama3.2:3b-instruct-q4_0 and nomic-embed-text:latest models"
 print_success "✅ Backend:  http://127.0.0.1:8081"
 print_success "✅ Frontend: http://localhost:3000"
 echo ""

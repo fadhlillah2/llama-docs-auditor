@@ -39,9 +39,9 @@ Then open: **http://localhost:3000**
 
 ## ⏰ Performance Notes
 
-- **First AI response**: Takes 3-5 minutes (model loading)
+- **First AI response**: Takes 1-2 minutes (model loading)
 - **Subsequent responses**: Much faster (~10-30 seconds)
-- **Models used**: llama3.1:8b (main), qwen3:1.7b (embeddings)
+- **Models used**: llama3.2:3b-instruct-q4_0 (main), nomic-embed-text:latest (embeddings)
 
 ## 🛠️ What's Included
 

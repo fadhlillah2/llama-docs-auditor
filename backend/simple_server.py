@@ -10,7 +10,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 app = Flask(__name__)
 CORS(app)
 
-OLLAMA_MODEL_NAME = 'qwen3:1.7b'
+OLLAMA_MODEL_NAME = 'llama3.2:3b-instruct-q4_0'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc'}
 upload_dir = 'uploads'
 

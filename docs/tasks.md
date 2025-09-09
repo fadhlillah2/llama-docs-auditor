@@ -17,7 +17,7 @@
 ### 1.2 RAG Pipeline Optimization  
 - [x] **Implement pipeline parallelization in `rag_pipeline.py`** - Process document loading, chunking, and embedding in parallel
 - [x] **Add hybrid search capability** - Combine semantic and keyword search for better retrieval relevance
-- [x] **Optimize context window for Ollama model** - Configure optimal context size for qwen3:1.7b model
+- [x] **Optimize context window for Ollama model** - Configure optimal context size for nomic-embed-text:latest model
 - [x] **Implement memory management** - Add proper cleanup and memory pooling for long sessions
 - [x] **Add pipeline performance monitoring** - Track processing times for each pipeline stage
 - [x] **Implement smart retrieval ranking** - Improve relevance scoring for retrieved chunks

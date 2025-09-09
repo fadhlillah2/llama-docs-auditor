@@ -258,7 +258,7 @@ curl http://localhost:11434/api/version
 ollama serve
 
 # Pull required model
-ollama pull qwen3:1.7b
+ollama pull nomic-embed-text:latest
 
 # List available models
 ollama list
@@ -297,7 +297,7 @@ git commit --no-verify
 **Slow AI responses (30s+):**
 - Expected on first query (model loading)
 - Check Ollama logs: `ollama logs`
-- Try smaller model: `ollama pull qwen3:1.7b`
+- Try smaller model: `ollama pull nomic-embed-text:latest`
 - Monitor system resources during queries
 
 **Memory usage high:**
@@ -326,7 +326,7 @@ rm -rf ../data/chroma_db/
 # Restart Ollama
 killall ollama
 ollama serve
-ollama pull qwen3:1.7b
+ollama pull nomic-embed-text:latest
 ```
 
 ## 📈 Performance Monitoring

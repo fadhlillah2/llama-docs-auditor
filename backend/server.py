@@ -52,7 +52,7 @@ class ConfigValidator:
                     'validator': self._validate_port
                 },
                 'OLLAMA_MODEL_NAME': {
-                    'default': 'qwen3:1.7b',
+                    'default': 'llama3.2:3b-instruct-q4_0',
                     'validator': self._validate_model_name
                 },
                 'OLLAMA_BASE_URL': {
@@ -180,7 +180,7 @@ class ConfigValidator:
     
     def _validate_model_name(self, value: str) -> tuple[bool, str]:
         """Validate Ollama model name."""
-        valid_models = ['qwen3:1.7b', 'llama2', 'mistral', 'deepseek-r1:8b', 'codellama']
+        valid_models = ['llama3.2:3b-instruct-q4_0', 'llama2', 'mistral', 'deepseek-r1:8b', 'codellama']
         if value not in valid_models:
             self.warnings.append(f"⚠️ Model '{value}' not in common list. Ensure it's available in Ollama")
         return True, f"Model: {value}"
@@ -306,7 +306,7 @@ class ConfigValidator:
                 'max_upload_size_mb': int(self.config.get('MAX_UPLOAD_SIZE', '16777216')) / (1024*1024)
             },
             'ollama': {
-                'model': self.config.get('OLLAMA_MODEL_NAME', 'qwen3:1.7b'),
+                'model': self.config.get('OLLAMA_MODEL_NAME', 'llama3.2:3b-instruct-q4_0'),
                 'base_url': self.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
             },
             'session': {
@@ -533,7 +533,7 @@ app.config['MAX_CONTENT_LENGTH'] = max_upload_size
 app.config['UPLOAD_FOLDER'] = upload_dir
 
 # Use validated configuration values
-OLLAMA_MODEL_NAME = validated_config.get('OLLAMA_MODEL_NAME', 'qwen3:1.7b')
+OLLAMA_MODEL_NAME = validated_config.get('OLLAMA_MODEL_NAME', 'llama3.2:3b-instruct-q4_0')
 vector_db_path = os.environ.get('VECTOR_DB_PATH', '../data/chroma_db/')
 
 # Feature flags system

@@ -9,7 +9,7 @@ from conversation_chain import ConversationChain
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv()
-OLLAMA_MODEL_NAME = 'llama3.1:8b'
+OLLAMA_MODEL_NAME = 'llama3.2:3b-instruct-q4_0'
 load_dotenv(find_dotenv())
 
 class RAGPipeline:
@@ -160,7 +160,7 @@ class RAGPipeline:
             # Simple embedding without caching
             from langchain_ollama import OllamaEmbeddings
             simple_embedding = OllamaEmbeddings(
-                model="qwen3:1.7b",
+                model="nomic-embed-text:latest",
                 base_url="http://localhost:11434"
             )
             

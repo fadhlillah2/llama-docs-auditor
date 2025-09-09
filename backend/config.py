@@ -21,7 +21,7 @@ class BaseConfig(ABC):
     SERVER_HOST = os.environ.get('SERVER_HOST', '127.0.0.1')
     
     # Ollama settings
-    OLLAMA_MODEL_NAME = os.environ.get('OLLAMA_MODEL_NAME', 'qwen3:1.7b')
+    OLLAMA_MODEL_NAME = os.environ.get('OLLAMA_MODEL_NAME', 'llama3.2:3b-instruct-q4_0')
     OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
     OLLAMA_TIMEOUT = int(os.environ.get('OLLAMA_TIMEOUT', '300'))
     
