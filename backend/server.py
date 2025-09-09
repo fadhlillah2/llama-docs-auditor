@@ -823,31 +823,71 @@ def upload_file():
         # Store session ID in Flask session
         session['rag_session_id'] = session_id
         
-        # Initialize QA chain in background (async)
-        initialization_success = session_manager.initialize_qa_chain(session_id)
+        # Return success immediately, process QA chain asynchronously
+        import threading
         
-        if initialization_success:
-            session_info = session_manager.get_session_info(session_id)
-            return jsonify({
-                'message': 'File uploaded and processed successfully',
-                'status': 'success',
-                'session_id': session_id[:8] + '...',  # Partial session ID for client reference
-                'file_name': filename,
-                'session_info': session_info
-            }), 201
-        else:
-            return jsonify({
-                'message': 'File uploaded but processing failed',
-                'status': 'warning',
-                'session_id': session_id[:8] + '...',
-                'file_name': filename
-            }), 206  # Partial content
+        def async_initialize():
+            """Initialize QA chain in background thread."""
+            try:
+                session_manager.initialize_qa_chain(session_id)
+                print(f"✓ Background processing completed for session: {session_id[:8]}...")
+            except Exception as e:
+                print(f"❌ Background processing failed for session {session_id[:8]}...: {e}")
+        
+        # Start background processing
+        thread = threading.Thread(target=async_initialize, daemon=True)
+        thread.start()
+        
+        # Return immediate success
+        return jsonify({
+            'message': 'File uploaded successfully. Processing in background.',
+            'status': 'success',
+            'session_id': session_id[:8] + '...',
+            'file_name': filename,
+            'processing_status': 'in_progress'
+        }), 201
         
     except Exception as e:
         print(f"❌ Upload error: {e}")
         return jsonify({
             "message": f"Upload failed: {str(e)}",
             "status": 'failed'
+        }), 500
+
+@app.route('/status', methods=['GET'])
+def get_status():
+    """Get processing status for current session."""
+    try:
+        session_id = session.get('rag_session_id')
+        if not session_id:
+            return jsonify({
+                'status': 'no_session',
+                'message': 'No active session found'
+            }), 404
+        
+        session_info = session_manager.get_session_info(session_id)
+        if not session_info:
+            return jsonify({
+                'status': 'session_expired',
+                'message': 'Session not found or expired'
+            }), 404
+        
+        # Check if QA chain is ready
+        with session_manager.lock:
+            session_obj = session_manager.sessions.get(session_id)
+            is_ready = session_obj and session_obj.qa_chain is not None
+        
+        return jsonify({
+            'status': 'ready' if is_ready else 'processing',
+            'message': 'QA system ready' if is_ready else 'Still processing document...',
+            'session_info': session_info
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Status check error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Status check failed: {str(e)}'
         }), 500
 
 @app.route('/ask_ai', methods=['POST'])
@@ -898,10 +938,18 @@ def query_endpoint():
         qa_chain = session_manager.get_qa_chain(session_id)
         
         if not qa_chain:
-            return jsonify({
-                'error': 'Session expired or QA chain not initialized. Please re-upload your document.',
-                'status': 'session_expired'
-            }), 400
+            # Check if session exists but QA chain is still processing
+            session_info = session_manager.get_session_info(session_id)
+            if session_info:
+                return jsonify({
+                    'error': 'Document is still being processed. Please wait a moment and try again.',
+                    'status': 'processing'
+                }), 202  # Accepted but not yet processed
+            else:
+                return jsonify({
+                    'error': 'Session expired or not found. Please re-upload your document.',
+                    'status': 'session_expired'
+                }), 400
         
         # Process question
         print(f"🤖 Processing question for session: {session_id[:8]}...")
