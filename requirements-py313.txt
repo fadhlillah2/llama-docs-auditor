@@ -1,0 +1,45 @@
+# Python 3.13 compatible requirements
+# Core Flask Web Framework
+Flask>=3.0.0
+Flask-Cors>=4.0.0
+Werkzeug>=3.0.0
+
+# LangChain RAG Framework (relaxed versions for compatibility)
+langchain
+langchain-community
+langchain-core
+langchain-ollama
+
+# Document Processing
+pypdf
+python-docx
+
+# Vector Database & Embeddings
+chromadb
+sentence-transformers
+
+# Scientific Computing & ML (numpy 2.0+ for Python 3.13)
+numpy
+scikit-learn
+
+# Ollama Client
+ollama
+
+# Environment Configuration
+python-dotenv
+
+# Security & Authentication
+bcrypt
+
+# HTTP Requests
+requests
+
+# Async Support
+aiohttp
+
+# Data Validation
+pydantic
+
+# Utilities
+click
+tqdm

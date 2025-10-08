@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ollama:*)",
+      "Bash(curl:*)",
+      "Bash(test:*)",
+      "Bash(node:*)",
+      "Bash(where python)",
+      "Bash(python:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(PYTHONIOENCODING=utf-8 python server.py)",
+      "Bash(chmod:*)",
+      "Bash(bash:*)",
+      "Bash(/dev/null)",
+      "Bash(.venv/Scripts/python.exe backend/server.py:*)",
+      "Bash(PYTHONIOENCODING=utf-8 ../.venv/Scripts/python.exe server.py)",
+      "Bash(if [ -d \"venv\" ])",
+      "Bash(then echo \"venv exists\")",
+      "Bash(else echo \"venv not found\")",
+      "Bash(fi)",
+      "Bash(pip uninstall:*)",
+      "Bash(py:*)",
+      "Bash(if [ -d \"node_modules\" ])",
+      "Bash(then echo \"node_modules exists\")",
+      "Bash(else echo \"node_modules not found\")",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(PYTHONIOENCODING=utf-8 source ../venv/Scripts/activate)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
