@@ -5,14 +5,19 @@ from langchain.schema import Document
 from typing import List
 
 class ConversationChain:
-    def __init__(self, model_name: str = "llama3.2:3b-instruct-q4_0"):
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
         """Initialize conversation chain with model-specific optimizations."""
         self.model_name = model_name
         self.context_limits = self._get_context_limits()
-    
+
     def _get_context_limits(self) -> dict:
         """Get context window limits for different models."""
         limits = {
+            "llama-3.3-70b-versatile": {
+                "max_tokens": 4000,  # Excellent limit for llama-3.3-70b
+                "max_context_chars": 8000,
+                "max_memory_turns": 6
+            },
             "llama3.2:3b-instruct-q4_0": {
                 "max_tokens": 2000,  # Good limit for llama3.2:3b
                 "max_context_chars": 4000,

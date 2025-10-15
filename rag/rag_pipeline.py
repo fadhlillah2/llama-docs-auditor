@@ -1,4 +1,5 @@
 import time
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from data_loader import LoadDocuments
 from chunk_documents import ChunkDocuments
@@ -9,7 +10,8 @@ from conversation_chain import ConversationChain
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv()
-OLLAMA_MODEL_NAME = 'llama3.2:3b-instruct-q4_0'
+# Use Groq model by default, can be overridden by environment variable
+GROQ_MODEL_NAME = os.getenv('GROQ_MODEL_NAME', 'llama-3.3-70b-versatile')
 load_dotenv(find_dotenv())
 
 class RAGPipeline:
@@ -175,7 +177,7 @@ class RAGPipeline:
     
     def qa_chain(self):
         """Create optimized QA chain with context window management."""
-        chat_model = ChatModel(OLLAMA_MODEL_NAME).initialize_chat_model()
+        chat_model = ChatModel(GROQ_MODEL_NAME).initialize_chat_model()
         retriever = self.pipeline()
         
         if not retriever:
@@ -183,10 +185,10 @@ class RAGPipeline:
             return None
             
         # Create conversation chain with model-specific optimizations
-        conversation_chain_creator = ConversationChain(model_name=OLLAMA_MODEL_NAME)
+        conversation_chain_creator = ConversationChain(model_name=GROQ_MODEL_NAME)
         conversation_chain = conversation_chain_creator.create_retrieval_qa_chain(chat_model, retriever)
         
-        print(f"✓ QA chain created with context optimization for {OLLAMA_MODEL_NAME}")
+        print(f"✓ QA chain created with context optimization for {GROQ_MODEL_NAME}")
         return conversation_chain
 
 

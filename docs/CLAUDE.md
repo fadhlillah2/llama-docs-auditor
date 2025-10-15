@@ -18,10 +18,9 @@ That's it! The scripts handle everything automatically.
 ### 📋 Manual Prerequisites (if needed)
 If the automated setup fails, ensure these are installed:
 - **Python 3.8+**: `python3 --version`
-- **Node.js 18+**: `node --version` 
-- **Ollama**: Download from https://ollama.ai
-  - macOS: `brew install ollama`
-  - Linux: `curl -fsSL https://ollama.ai/install.sh | sh`
+- **Node.js 18+**: `node --version`
+- **Groq API Key**: Get from https://console.groq.com/keys
+  - Add to .env file: `GROQ_API_KEY=gsk_your-actual-key`
 
 ### 🎯 Access Points
 - **Frontend**: http://localhost:3000
@@ -39,15 +38,16 @@ If the automated setup fails, ensure these are installed:
 2. Open http://localhost:3000
 3. Upload any PDF/TXT file
 4. Ask questions about the document
-5. **First response takes 3-5 minutes** (model loading)
-6. Subsequent responses are fast!
+5. **First response is fast with Groq** (no local model loading)
+6. All responses are consistently fast!
 
 ### 🔧 What the Scripts Do
 
 **setup-project.sh:**
 - Creates Python virtual environment
 - Installs working dependencies (no conflicts!)
-- Pulls required Ollama models (llama3.2:3b-instruct-q4_0, nomic-embed-text:latest)
+- Installs Groq dependencies (langchain-groq)
+- Sets up Groq API integration for fast cloud inference
 - Sets up frontend dependencies
 - Creates data directories
 

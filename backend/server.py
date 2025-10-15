@@ -59,6 +59,18 @@ class ConfigValidator:
                     'default': 'http://localhost:11434',
                     'validator': self._validate_url
                 },
+                'GROQ_API_KEY': {
+                    'default': '',
+                    'validator': self._validate_api_key
+                },
+                'GROQ_MODEL_NAME': {
+                    'default': 'llama-3.3-70b-versatile',
+                    'validator': self._validate_model_name
+                },
+                'GROQ_TIMEOUT': {
+                    'default': '300',
+                    'validator': self._validate_timeout
+                },
                 'MAX_UPLOAD_SIZE': {
                     'default': '16777216',
                     'validator': self._validate_file_size
@@ -163,7 +175,25 @@ class ConfigValidator:
                 return False, f"API key '{key[:8]}...' is too short (minimum 20 characters)"
         
         return True, f"Valid ({len(keys)} key(s) configured)"
-    
+
+    def _validate_api_key(self, value: str) -> tuple[bool, str]:
+        """Validate a single API key."""
+        if not value:
+            return False, "API key is required"
+
+        # Check if it's a placeholder value
+        if value in ['your-groq-api-key-here', 'gsk_your-groq-api-key-here', 'your-api-key-here']:
+            return False, "Please replace placeholder API key with actual key"
+
+        # Basic validation for Groq API keys (they start with 'gsk_')
+        if not value.startswith('gsk_'):
+            return False, "Groq API key should start with 'gsk_'"
+
+        if len(value) < 40:
+            return False, "API key is too short (minimum 40 characters)"
+
+        return True, "API key format is valid"
+
     def _validate_env_mode(self, value: str) -> tuple[bool, str]:
         """Validate environment mode."""
         return True, f"Environment mode: {value}"
