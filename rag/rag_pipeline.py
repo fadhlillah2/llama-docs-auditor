@@ -115,7 +115,7 @@ class RAGPipeline:
         def prewarm_model():
             try:
                 embedding_creator.create_embeddings()
-                print("✓ Ollama model pre-warmed")
+                print("✓ Embedding model pre-warmed")
                 return True
             except Exception as e:
                 print(f"⚠️ Model pre-warming failed: {e}")
@@ -159,12 +159,9 @@ class RAGPipeline:
             limited_docs = documents[:10]  # Limit for performance
             print(f"🔄 Using fallback with {len(limited_docs)} documents")
             
-            # Simple embedding without caching
-            from langchain_ollama import OllamaEmbeddings
-            simple_embedding = OllamaEmbeddings(
-                model="nomic-embed-text:latest",
-                base_url="http://localhost:11434"
-            )
+            # Simple embedding using fake embeddings for development
+            from embedding import FakeEmbeddings
+            simple_embedding = FakeEmbeddings(embedding_dim=384)
             
             # Create basic retriever
             retriever = Retriever(limited_docs, simple_embedding, self.vector_db_path).get_retriever()

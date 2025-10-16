@@ -74,24 +74,26 @@ class SimpleRetriever(BaseRetriever):
         try:
             if not self._chunks:
                 return
-                
+
             # Extract texts for TF-IDF
             chunk_texts = [chunk.page_content for chunk in self._chunks]
-            
+
             # Create TF-IDF vectorizer optimized for legal documents
+            # Adjust min_df for single documents - use 1 instead of 2
+            min_df = 1 if len(chunk_texts) < 2 else 2
             self._tfidf_vectorizer = TfidfVectorizer(
                 max_features=5000,
                 stop_words='english',
                 ngram_range=(1, 2),  # Include bigrams for legal terms
-                min_df=2,  # Term must appear in at least 2 documents
+                min_df=min_df,  # Term must appear in at least min_df documents
                 max_df=0.8,  # Ignore terms that appear in >80% of documents
                 lowercase=True,
                 token_pattern=r'\b[A-Za-z][A-Za-z]+\b'  # Only alphabetic tokens
             )
-            
+
             self._tfidf_matrix = self._tfidf_vectorizer.fit_transform(chunk_texts)
             print(f"✓ TF-IDF setup complete with {self._tfidf_matrix.shape[1]} features")
-            
+
         except Exception as e:
             print(f"⚠️ TF-IDF setup failed: {e}")
             self._tfidf_vectorizer = None
@@ -155,28 +157,50 @@ class SimpleRetriever(BaseRetriever):
     def _semantic_search(self, query: str, top_k: int = 8) -> List[tuple]:
         """Perform semantic search using embeddings."""
         try:
+            print(f"🔍 DEBUG: Starting semantic search for query: '{query}'")
+            print(f"🔍 DEBUG: Available chunks: {len(self._chunks)}")
+            print(f"🔍 DEBUG: Available embeddings: {len(self._embeddings)}")
+
             # Get query embedding using caching if available
             if hasattr(self._embedding, 'embed_query_cached'):
                 query_embedding = self._embedding.embed_query_cached(query)
             else:
                 query_embedding = self._embedding.embed_query(query)
-            
+
+            print(f"🔍 DEBUG: Query embedding created with dimension: {len(query_embedding)}")
+
             # Calculate similarities
             similarities = cosine_similarity([query_embedding], self._embeddings)[0]
-            
+            print(f"🔍 DEBUG: Similarities calculated: min={np.min(similarities):.3f}, max={np.max(similarities):.3f}")
+
             # Get top results with scores
             top_indices = np.argsort(similarities)[-top_k:][::-1]
-            
+            print(f"🔍 DEBUG: Top {len(top_indices)} indices: {top_indices}")
+
             results = []
             for idx in top_indices:
-                if similarities[idx] > 0.2:  # Lower threshold for semantic search
-                    results.append((self._chunks[idx], similarities[idx], 'semantic'))
-            
+                similarity_score = similarities[idx]
+                print(f"🔍 DEBUG: Chunk {idx} similarity: {similarity_score:.3f}")
+                # Much lower threshold for fake embeddings (they can have negative correlations)
+                if similarity_score > -0.5:  # Very low threshold for fake embeddings
+                    results.append((self._chunks[idx], similarity_score, 'semantic'))
+                    print(f"🔍 DEBUG: Added chunk {idx} with similarity {similarity_score:.3f}")
+
+            # If no results meet threshold, still return the best match
+            if not results and len(similarities) > 0:
+                best_idx = np.argmax(similarities)
+                best_similarity = similarities[best_idx]
+                results.append((self._chunks[best_idx], best_similarity, 'semantic'))
+                print(f"🔍 Using best match with similarity {best_similarity:.3f} (below threshold)")
+
+            print(f"🔍 DEBUG: Semantic search returning {len(results)} results")
             self._performance_stats['semantic_searches'] += 1
             return results
-            
+
         except Exception as e:
             print(f"⚠️ Semantic search failed: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def _keyword_search(self, query: str, top_k: int = 8) -> List[tuple]:

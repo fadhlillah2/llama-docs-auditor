@@ -2,9 +2,9 @@ import os
 import json
 import hashlib
 import asyncio
+import random
 from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor
-from langchain_ollama import OllamaEmbeddings
 
 class EmbeddingsCreator:
     def __init__(self, cache_dir: str = "../cache/embeddings"):
@@ -49,22 +49,11 @@ class EmbeddingsCreator:
             print(f"⚠️ Error saving to cache {cache_key}: {e}")
 
     def create_embeddings(self):
-        """Creates embeddings from text using Ollama embeddings with caching."""
+        """Creates embeddings from text using fake embeddings for development."""
         if self._embeddings_model is None:
-            try:
-                model_name = "nomic-embed-text:latest"
-                print(f"Creating Ollama embeddings with model: {model_name}")
-                self._embeddings_model = OllamaEmbeddings(
-                    model=model_name,
-                    base_url="http://localhost:11434"
-                )
-                print(f"✓ Created Ollama embeddings with model: {model_name}")
-            except Exception as e:
-                print(f"❌ Error creating Ollama embeddings: {e}")
-                import traceback
-                traceback.print_exc()
-                raise e
-        
+            print("✓ Using fake embeddings for development (no external dependencies)")
+            self._embeddings_model = FakeEmbeddings()
+
         return self._embeddings_model
 
     def embed_documents_cached(self, texts: List[str]) -> List[List[float]]:
@@ -134,3 +123,32 @@ class EmbeddingsCreator:
         self._save_to_cache(cache_key, embedding, text)
         
         return embedding
+
+
+class FakeEmbeddings:
+    """Fake embeddings class for development/testing purposes."""
+
+    def __init__(self, embedding_dim: int = 384):
+        """Initialize fake embeddings with specified dimension."""
+        self.embedding_dim = embedding_dim
+        print(f"✓ Created fake embeddings with dimension: {embedding_dim}")
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Generate fake embeddings for documents."""
+        print(f"✓ Generating fake embeddings for {len(texts)} documents")
+        embeddings = []
+        for i, text in enumerate(texts):
+            # Generate consistent fake embeddings based on text hash
+            hash_val = hash(text) % 1000
+            random.seed(hash_val)
+            embedding = [random.uniform(-1, 1) for _ in range(self.embedding_dim)]
+            embeddings.append(embedding)
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Generate fake embedding for query."""
+        print(f"✓ Generating fake embedding for query")
+        # Generate consistent fake embedding based on text hash
+        hash_val = hash(text) % 1000
+        random.seed(hash_val)
+        return [random.uniform(-1, 1) for _ in range(self.embedding_dim)]

@@ -536,7 +536,7 @@ if ENVIRONMENT == 'production':
 else:
     # Development CORS - allow all origins for development
     CORS(app,
-         origins=['http://localhost:3000', 'http://127.0.0.1:3000'],
+         origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'],
          methods=['GET', 'POST', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization', 'X-Session-ID', 'X-User-ID'],
          supports_credentials=True)
@@ -849,24 +849,31 @@ def upload_file():
         raw_user_id = request.headers.get('X-User-ID', 'anonymous')
         user_id = sanitize_user_input(raw_user_id, max_length=50) or 'anonymous'  # Optional user identification
         session_id = session_manager.create_session(file_path, user_id)
-        
+        print(f"🎯 DEBUG: Session created successfully: {session_id[:8]}...")
+
         # Store session ID in Flask session
         session['rag_session_id'] = session_id
+        print(f"🎯 DEBUG: Session stored in Flask session")
         
         # Return success immediately, process QA chain asynchronously
         import threading
         
         def async_initialize():
             """Initialize QA chain in background thread."""
+            print(f"🚀 Background thread started for session: {session_id[:8]}...")
             try:
                 session_manager.initialize_qa_chain(session_id)
                 print(f"✓ Background processing completed for session: {session_id[:8]}...")
             except Exception as e:
                 print(f"❌ Background processing failed for session {session_id[:8]}...: {e}")
-        
+                import traceback
+                traceback.print_exc()
+
         # Start background processing
+        print(f"🧵 Starting background thread for session: {session_id[:8]}...")
         thread = threading.Thread(target=async_initialize, daemon=True)
         thread.start()
+        print(f"✅ Background thread launched for session: {session_id[:8]}...")
         
         # Return immediate success
         return jsonify({
@@ -924,12 +931,15 @@ def get_status():
 @rate_limit('query')
 def query_endpoint():
     """Process question using session-based QA chain."""
+    print("🔍 DEBUG: Query endpoint accessed")
     start_time = time.time()
-    
+
     try:
+        print("🔍 DEBUG: Starting request validation")
         # Validate request
         data = request.get_json()
         if not data or 'prompt' not in data:
+            print("🔍 DEBUG: No prompt provided, returning 400")
             return jsonify({
                 'error': 'No prompt provided in request'
             }), 400
