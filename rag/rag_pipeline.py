@@ -22,70 +22,98 @@ class RAGPipeline:
         self.uploaded_file = uploaded_file
         self.vector_db_path = vector_db_path
     def pipeline(self):
-        print("📄 Starting optimized RAG pipeline...")
+        print("\n" + "="*80, flush=True)
+        print("📄 Starting optimized RAG pipeline...", flush=True)
+        print(f"📄 Processing file: {self.uploaded_file}", flush=True)
         start_time = time.time()
-        
+
         try:
+            # Validate file exists
+            import os as os_module
+            if not os_module.path.exists(self.uploaded_file):
+                raise ValueError(f"File not found: {self.uploaded_file}")
+            print(f"✓ File exists: {self.uploaded_file}", flush=True)
+            print(f"✓ File size: {os_module.path.getsize(self.uploaded_file)} bytes", flush=True)
+
             # Load documents with error recovery
-            print("📥 Loading documents...")
+            print("📥 Loading documents...", flush=True)
             documents = self._load_documents_with_retry()
             if not documents:
                 raise ValueError("No documents could be loaded")
-            print(f"✓ Loaded {len(documents)} documents")
+            print(f"✓ Loaded {len(documents)} documents", flush=True)
             
             # Chunk documents for better retrieval - optimized for contracts
-            print("📝 Chunking documents...")
+            print("📝 Chunking documents...", flush=True)
             chunks = self._chunk_documents_with_validation(documents)
             if not chunks:
                 raise ValueError("Document chunking failed")
-            print(f"✓ Created {len(chunks)} optimized chunks for contracts")
-            
+            print(f"✓ Created {len(chunks)} optimized chunks for contracts", flush=True)
+
             # Initialize embedding creator with error recovery
-            print("🧠 Initializing embeddings with caching...")
+            print("🧠 Initializing embeddings with caching...", flush=True)
             embedding_creator = self._initialize_embeddings_with_retry()
-            
+
             # Create retriever with parallel pre-warming
+            print("🔍 Creating retriever with pre-warming...", flush=True)
             retriever = self._create_retriever_with_prewarm(chunks, embedding_creator)
-            
+
+            if not retriever:
+                raise ValueError("Retriever creation failed")
+
             end_time = time.time()
             pipeline_time = end_time - start_time
-            print(f"✓ Retriever Created Successfully with caching! Pipeline took {pipeline_time:.2f}s")
+            print(f"✓ Retriever Created Successfully! Pipeline took {pipeline_time:.2f}s", flush=True)
+            print("="*80 + "\n", flush=True)
             return retriever
-            
+
         except Exception as e:
-            print(f"❌ RAG Pipeline failed: {e}")
+            print(f"\n❌ RAG Pipeline FAILED: {e}", flush=True)
+            import traceback
+            print("Full traceback:", flush=True)
+            traceback.print_exc()
+            print("="*80 + "\n", flush=True)
             # Attempt fallback pipeline with minimal functionality
+            print("🔄 Attempting fallback pipeline...", flush=True)
             return self._fallback_pipeline()
     
     def _load_documents_with_retry(self, max_retries: int = 3):
         """Load documents with retry logic."""
         for attempt in range(max_retries):
             try:
+                print(f"📖 Attempt {attempt + 1}/{max_retries} to load document...", flush=True)
                 loader = LoadDocuments(self.uploaded_file)
                 documents = loader.load_document()
                 if documents:
+                    print(f"✓ Successfully loaded {len(documents)} pages/sections", flush=True)
                     return documents
-                print(f"⚠️ Attempt {attempt + 1}: No documents loaded")
+                print(f"⚠️ Attempt {attempt + 1}: No documents loaded", flush=True)
             except Exception as e:
-                print(f"⚠️ Attempt {attempt + 1} failed: {e}")
+                print(f"⚠️ Attempt {attempt + 1} failed: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
                 if attempt == max_retries - 1:
+                    print(f"❌ All {max_retries} attempts failed!", flush=True)
                     raise e
+                print(f"⏳ Waiting before retry...", flush=True)
                 time.sleep(1)  # Brief delay before retry
         return []
     
     def _chunk_documents_with_validation(self, documents):
-        """Chunk documents with validation."""
+        """Chunk documents with validation - optimized for contract analysis."""
         try:
             chunk_documents = ChunkDocuments(documents)
-            chunks = chunk_documents.chunk_documents(chunk_size=800, chunk_overlap=100)
-            
+            # Increased chunk size for better context preservation
+            # 1200 chars ≈ 300 tokens, allowing better semantic understanding
+            chunks = chunk_documents.chunk_documents(chunk_size=1200, chunk_overlap=200)
+
             # Validate chunks
             valid_chunks = [chunk for chunk in chunks if chunk.page_content.strip()]
             if len(valid_chunks) < len(chunks):
                 print(f"⚠️ Filtered out {len(chunks) - len(valid_chunks)} empty chunks")
-            
+
+            print(f"✓ Created {len(valid_chunks)} document chunks (1200 chars with 200-char overlap)")
             return valid_chunks
-            
+
         except Exception as e:
             print(f"⚠️ Chunking failed: {e}")
             # Fallback: use documents as-is with basic splitting

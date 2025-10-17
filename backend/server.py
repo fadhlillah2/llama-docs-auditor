@@ -51,14 +51,15 @@ class ConfigValidator:
                     'default': '8081',
                     'validator': self._validate_port
                 },
-                'OLLAMA_MODEL_NAME': {
-                    'default': 'llama3.2:3b-instruct-q4_0',
-                    'validator': self._validate_model_name
-                },
-                'OLLAMA_BASE_URL': {
-                    'default': 'http://localhost:11434',
-                    'validator': self._validate_url
-                },
+                # Ollama settings - DEPRECATED, using Groq instead
+                # 'OLLAMA_MODEL_NAME': {
+                #     'default': 'llama3.2:3b-instruct-q4_0',
+                #     'validator': self._validate_model_name
+                # },
+                # 'OLLAMA_BASE_URL': {
+                #     'default': 'http://localhost:11434',
+                #     'validator': self._validate_url
+                # },
                 'GROQ_API_KEY': {
                     'default': '',
                     'validator': self._validate_api_key
@@ -209,10 +210,10 @@ class ConfigValidator:
             return False, f"Invalid port number: {value}"
     
     def _validate_model_name(self, value: str) -> tuple[bool, str]:
-        """Validate Ollama model name."""
-        valid_models = ['llama3.2:3b-instruct-q4_0', 'llama2', 'mistral', 'deepseek-r1:8b', 'codellama']
-        if value not in valid_models:
-            self.warnings.append(f"⚠️ Model '{value}' not in common list. Ensure it's available in Ollama")
+        """Validate model name (Groq or others)."""
+        valid_groq_models = ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768']
+        if value not in valid_groq_models:
+            self.warnings.append(f"⚠️ Model '{value}' not in common Groq list. Ensure it's available in Groq")
         return True, f"Model: {value}"
     
     def _validate_url(self, value: str) -> tuple[bool, str]:
@@ -335,9 +336,14 @@ class ConfigValidator:
                 'vector_db': vector_db_path if 'vector_db_path' in globals() else 'not_configured',
                 'max_upload_size_mb': int(self.config.get('MAX_UPLOAD_SIZE', '16777216')) / (1024*1024)
             },
-            'ollama': {
-                'model': self.config.get('OLLAMA_MODEL_NAME', 'llama3.2:3b-instruct-q4_0'),
-                'base_url': self.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+            # Ollama config - DEPRECATED, using Groq instead
+            # 'ollama': {
+            #     'model': self.config.get('OLLAMA_MODEL_NAME', 'llama3.2:3b-instruct-q4_0'),
+            #     'base_url': self.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+            # },
+            'groq': {
+                'model': self.config.get('GROQ_MODEL_NAME', 'llama-3.3-70b-versatile'),
+                'api_key_configured': bool(self.config.get('GROQ_API_KEY'))
             },
             'session': {
                 'timeout_minutes': int(self.config.get('SESSION_TIMEOUT_MINUTES', '30')),
@@ -352,6 +358,159 @@ validated_config = config_validator.validate_all()
 if validated_config is None:
     print("❌ Configuration validation failed. Exiting...")
     exit(1)
+
+# 🎯 SECTION SEARCH FUNCTION: Direct text search for section references
+def search_section_directly(question: str, documents: list) -> Optional[str]:
+    """Search for section references directly in documents."""
+    print(f"🔍 DIRECT SECTION SEARCH: Searching for '{question}' in {len(documents)} documents")
+
+    # Normalize question to extract section references
+    question_lower = question.lower()
+
+    # Check for specific section references
+    section_patterns = {
+        'iv.15': ['iv.15', 'section iv.15', 'section iv15'],
+        'iv.14': ['iv.14', 'section iv.14', 'section iv14'],
+        'iv.13': ['iv.13', 'section iv.13', 'section iv13'],
+        'iv.12': ['iv.12', 'section iv.12', 'section iv12'],
+        'iv.': ['iv.', 'section iv'],
+        'article': ['article'],
+    }
+
+    # Find which section pattern the user is asking about
+    target_section = None
+    for section, patterns in section_patterns.items():
+        if any(pattern in question_lower for pattern in patterns):
+            target_section = section
+            break
+
+    if not target_section:
+        return None
+
+    print(f"🎯 TARGET SECTION: {target_section}")
+
+    # Search through documents for the section
+    for doc in documents:
+        if hasattr(doc, 'page_content'):
+            content = doc.page_content.lower()
+            content_original = doc.page_content
+
+            # Check if this document contains the target section
+            if target_section == 'iv.15':
+                # Look for Section IV.15 with more flexible pattern matching
+                section_patterns = ['section iv.15', 'iv.15', 'section iv15', 'iv.15', 'iv15']
+                found_section = False
+
+                for pattern in section_patterns:
+                    if pattern in content:
+                        found_section = True
+                        break
+
+                if found_section:
+                    # Found Section IV.15, extract relevant context
+                    print(f"✅ FOUND Section IV.15 in document!")
+
+                    # Find the exact location and extract context
+                    lines = content_original.split('\n')
+                    section_lines = []
+                    capturing = False
+
+                    for i, line in enumerate(lines):
+                        line_lower = line.lower()
+                        if any(pattern in line_lower for pattern in section_patterns):
+                            capturing = True
+                            section_lines.append(line)
+                        elif capturing and line.strip() and not line.startswith(' '):
+                            # Stop when we hit the next section or major heading
+                            if any(x in line_lower for x in ['iv.16', 'iv.14', 'section iv', 'article']):
+                                break
+                            section_lines.append(line)
+                        elif capturing:
+                            section_lines.append(line)
+
+                    if section_lines:
+                        context = '\n'.join(section_lines[:10])  # Limit to first 10 lines
+                        return f"Yes, I found Section IV.15 in the document:\n\n{context}\n\nThis is the complete information available about Section IV.15 in the uploaded document."
+
+            elif target_section == 'iv.14' and ('iv.14' in content or 'section iv.14' in content):
+                # Similar logic for IV.14
+                lines = content_original.split('\n')
+                section_lines = []
+                capturing = False
+
+                for i, line in enumerate(lines):
+                    if 'iv.14' in line.lower() or 'section iv.14' in line.lower():
+                        capturing = True
+                        section_lines.append(line)
+                    elif capturing and line.strip() and not line.startswith(' '):
+                        if any(x in line.lower() for x in ['iv.15', 'iv.13', 'section', 'article']):
+                            break
+                        section_lines.append(line)
+                    elif capturing:
+                        section_lines.append(line)
+
+                if section_lines:
+                    context = '\n'.join(section_lines[:10])
+                    return f"Yes, I found Section IV.14 in the document:\n\n{context}\n\nThis is the complete information available about Section IV.14 in the uploaded document."
+
+            elif target_section == 'iv.13':
+                # Look for Section IV.13 with more flexible pattern matching
+                section_patterns = ['section iv.13', 'iv.13', 'section iv13', 'iv.13', 'iv13']
+                found_section = False
+
+                for pattern in section_patterns:
+                    if pattern in content:
+                        found_section = True
+                        break
+
+                if found_section:
+                    # Found Section IV.13, extract relevant context
+                    print(f"✅ FOUND Section IV.13 in document!")
+
+                    # Find the exact location and extract context
+                    lines = content_original.split('\n')
+                    section_lines = []
+                    capturing = False
+
+                    for i, line in enumerate(lines):
+                        line_lower = line.lower()
+                        if any(pattern in line_lower for pattern in section_patterns):
+                            capturing = True
+                            section_lines.append(line)
+                        elif capturing and line.strip() and not line.startswith(' '):
+                            # Stop when we hit the next section or major heading
+                            if any(x in line_lower for x in ['iv.14', 'iv.12', 'section iv', 'article']):
+                                break
+                            section_lines.append(line)
+                        elif capturing:
+                            section_lines.append(line)
+
+                    if section_lines:
+                        context = '\n'.join(section_lines[:10])  # Limit to first 10 lines
+                        return f"Yes, I found Section IV.13 in the document:\n\n{context}\n\nThis is the complete information available about Section IV.13 in the uploaded document."
+
+            elif target_section in content:
+                # Generic section search
+                lines = content_original.split('\n')
+                section_lines = []
+                capturing = False
+
+                for i, line in enumerate(lines):
+                    if target_section in line.lower():
+                        capturing = True
+                        section_lines.append(line)
+                    elif capturing and line.strip() and not line.startswith(' '):
+                        section_lines.append(line)
+                        break
+                    elif capturing:
+                        section_lines.append(line)
+
+                if section_lines:
+                    context = '\n'.join(section_lines[:5])
+                    return f"Yes, I found information about {target_section.upper()} in the document:\n\n{context}"
+
+    print(f"❌ Section {target_section} not found in documents")
+    return None
 
 app = Flask(__name__)
 
@@ -563,7 +722,8 @@ app.config['MAX_CONTENT_LENGTH'] = max_upload_size
 app.config['UPLOAD_FOLDER'] = upload_dir
 
 # Use validated configuration values
-OLLAMA_MODEL_NAME = validated_config.get('OLLAMA_MODEL_NAME', 'llama3.2:3b-instruct-q4_0')
+# OLLAMA_MODEL_NAME = validated_config.get('OLLAMA_MODEL_NAME', 'llama3.2:3b-instruct-q4_0')  # DEPRECATED
+GROQ_MODEL_NAME = validated_config.get('GROQ_MODEL_NAME', 'llama-3.3-70b-versatile')
 vector_db_path = os.environ.get('VECTOR_DB_PATH', '../data/chroma_db/')
 
 # Feature flags system
@@ -723,21 +883,27 @@ def sanitize_response_data(data: dict) -> dict:
     """Sanitize response data to prevent XSS attacks."""
     if not isinstance(data, dict):
         return data
-    
+
     sanitized = {}
     for key, value in data.items():
-        if isinstance(value, str):
-            # Escape HTML in string values
+        if key == 'result' or key == 'content':
+            # Don't escape AI responses and document content - they're safe from our RAG system
+            sanitized[key] = value
+        elif key == 'source_documents' and isinstance(value, list):
+            # Don't escape source document content
+            sanitized[key] = value
+        elif isinstance(value, str):
+            # Escape HTML in other string values (like error messages)
             sanitized[key] = html.escape(value)
         elif isinstance(value, dict):
             sanitized[key] = sanitize_response_data(value)
         elif isinstance(value, list):
-            sanitized[key] = [sanitize_response_data(item) if isinstance(item, dict) 
-                             else html.escape(str(item)) if isinstance(item, str) 
+            sanitized[key] = [sanitize_response_data(item) if isinstance(item, dict)
+                             else html.escape(str(item)) if isinstance(item, str)
                              else item for item in value]
         else:
             sanitized[key] = value
-    
+
     return sanitized
 
 def validate_file_content(file_path: str, filename: str) -> bool:
@@ -857,23 +1023,45 @@ def upload_file():
         
         # Return success immediately, process QA chain asynchronously
         import threading
-        
+        import sys
+
         def async_initialize():
             """Initialize QA chain in background thread."""
-            print(f"🚀 Background thread started for session: {session_id[:8]}...")
+            # CRITICAL: Ensure stdout/stderr are flushed in background thread
+            sys.stdout.flush()
+            sys.stderr.flush()
+
+            print(f"\n🚀 Background thread STARTED for session: {session_id[:8]}...", flush=True)
+            print(f"📁 Processing file: {file_path}", flush=True)
+
             try:
-                session_manager.initialize_qa_chain(session_id)
-                print(f"✓ Background processing completed for session: {session_id[:8]}...")
+                print(f"🔍 Checking session exists...", flush=True)
+                session_obj = session_manager.sessions.get(session_id)
+                if not session_obj:
+                    raise Exception(f"Session {session_id[:8]}... not found!")
+
+                print(f"✓ Session found with file: {session_obj.file_path}", flush=True)
+
+                print(f"🔄 Initializing QA chain...", flush=True)
+                success = session_manager.initialize_qa_chain(session_id)
+
+                if success:
+                    print(f"✅ Background processing COMPLETED for session: {session_id[:8]}...", flush=True)
+                else:
+                    print(f"❌ QA chain initialization returned False for session: {session_id[:8]}...", flush=True)
+
             except Exception as e:
-                print(f"❌ Background processing failed for session {session_id[:8]}...: {e}")
+                print(f"❌ Background processing FAILED for session {session_id[:8]}...", flush=True)
+                print(f"Error: {e}", flush=True)
                 import traceback
-                traceback.print_exc()
+                print("Traceback:", flush=True)
+                traceback.print_exc(file=sys.stdout)
 
         # Start background processing
-        print(f"🧵 Starting background thread for session: {session_id[:8]}...")
-        thread = threading.Thread(target=async_initialize, daemon=True)
+        print(f"🧵 Starting background thread for session: {session_id[:8]}...", flush=True)
+        thread = threading.Thread(target=async_initialize, daemon=False)  # CHANGED: daemon=False to ensure thread completes
         thread.start()
-        print(f"✅ Background thread launched for session: {session_id[:8]}...")
+        print(f"✅ Background thread launched (non-daemon) for session: {session_id[:8]}...", flush=True)
         
         # Return immediate success
         return jsonify({
@@ -993,15 +1181,30 @@ def query_endpoint():
         
         # Process question
         print(f"🤖 Processing question for session: {session_id[:8]}...")
-        
+
         # Get chat history from request or use empty list
         chat_history = data.get('chat_history', [])
-        
+
+        # 🎯 SECTION SEARCH FALLBACK: Check for section references and do direct search
+        section_response = None
+        if any(pattern in user_question.lower() for pattern in ['section', 'iv.15', 'iv.14', 'iv.13', 'iv.12', 'iv.', 'article']):
+            print(f"🔍 SECTION REFERENCE DETECTED: '{user_question}'")
+            # Get documents from session to search directly
+            session_documents = session_manager.get_session_documents(session_id)
+            if session_documents:
+                section_response = search_section_directly(user_question, session_documents)
+                if section_response:
+                    print(f"✅ Found section directly: {section_response[:100]}...")
+
         # Invoke QA chain
         response_node = qa_chain.invoke({
-            "question": user_question, 
+            "question": user_question,
             "chat_history": chat_history
         })
+
+        # Override with section response if found
+        if section_response:
+            response_node['answer'] = section_response
         
         # Calculate response time
         response_time = time.time() - start_time

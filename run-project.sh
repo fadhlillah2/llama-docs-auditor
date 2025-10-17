@@ -44,10 +44,11 @@ cleanup() {
         kill $FRONTEND_PID 2>/dev/null || true
         print_status "Frontend stopped"
     fi
-    if [ ! -z "$OLLAMA_PID" ]; then
-        kill $OLLAMA_PID 2>/dev/null || true
-        print_status "Ollama stopped"
-    fi
+    # No Ollama service to stop - using Groq cloud inference
+    # if [ ! -z "$OLLAMA_PID" ]; then
+    #     kill $OLLAMA_PID 2>/dev/null || true
+    #     print_status "Ollama stopped"
+    # fi
     echo ""
     print_success "All services stopped gracefully"
 }
@@ -71,44 +72,30 @@ if ! python -c "import flask" 2>/dev/null; then
     exit 1
 fi
 
-# 1. Start Ollama Server
-print_status "Starting Ollama server..."
-if ! curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-    ollama serve &
-    OLLAMA_PID=$!
-    
-    # Wait for Ollama to start (max 30 seconds)
-    print_status "Waiting for Ollama to start..."
-    for i in {1..30}; do
-        if curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-            break
-        fi
-        sleep 1
-        echo -n "."
-    done
-    echo ""
-    
-    if ! curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-        print_error "Failed to start Ollama server after 30 seconds"
-        exit 1
-    fi
-    print_success "Ollama server started (PID: $OLLAMA_PID)"
+# 1. Verify Groq API Configuration
+print_status "Verifying Groq API configuration..."
+
+# Check if .env file exists and has Groq API key
+if [ ! -f ".env" ]; then
+    print_error ".env file not found. Please run './setup-project.sh' first."
+    exit 1
+fi
+
+if ! grep -q "GROQ_API_KEY=gsk_" .env; then
+    print_error "GROQ_API_KEY not configured in .env file."
+    print_error "Please add your API key from https://console.groq.com/keys"
+    exit 1
+fi
+
+# Test Groq API connection
+source .env
+if curl -s -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models > /dev/null 2>&1; then
+    print_success "Groq API connection verified"
 else
-    print_success "Ollama server already running"
+    print_warning "Could not verify Groq API connection. Please check your API key."
 fi
 
-# Verify models are available
-if ! ollama list | grep -q "llama3.2:3b-instruct-q4_0"; then
-    print_warning "llama3.2:3b-instruct-q4_0 model not found. Pulling now..."
-    ollama pull llama3.2:3b-instruct-q4_0
-fi
-
-if ! ollama list | grep -q "nomic-embed-text:latest"; then
-    print_warning "nomic-embed-text:latest model not found. Pulling now..."  
-    ollama pull nomic-embed-text:latest
-fi
-
-print_success "Ollama models ready"
+print_success "Groq cloud LLM ready (no local setup needed)"
 
 # 2. Start Backend Server
 print_status "Starting backend server..."
@@ -163,17 +150,17 @@ echo ""
 print_header "🎉 All Services Running Successfully!"
 print_header "====================================="
 echo ""
-print_success "✅ Ollama:   Running with llama3.2:3b-instruct-q4_0 and nomic-embed-text:latest models"
-print_success "✅ Backend:  http://127.0.0.1:8081"
-print_success "✅ Frontend: http://localhost:3000"
+print_success "✅ Groq LLM:   Connected to cloud (fast responses)"
+print_success "✅ Backend:    http://127.0.0.1:8081"
+print_success "✅ Frontend:   http://localhost:3000"
 echo ""
 print_header "📖 How to Use:"
 echo "1. Open your browser and go to: http://localhost:3000"
 echo "2. Upload a contract document (PDF, TXT, DOCX)"
 echo "3. Ask questions about your contract"
 echo ""
-print_warning "⏰ Important: First AI query takes 3-5 minutes as model loads"
-print_warning "   Subsequent queries will be much faster!"
+print_success "⚡ Fast AI responses: 10-30 seconds (no local model loading)"
+print_success "   Powered by Groq cloud inference"
 echo ""
 print_header "🛑 To Stop: Press Ctrl+C"
 echo ""
@@ -182,10 +169,11 @@ echo ""
 print_status "Monitoring services... (Press Ctrl+C to stop all)"
 while true; do
     # Check if services are still running
-    if ! curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-        print_error "Ollama server stopped unexpectedly"
-        break
-    fi
+    # No Ollama service to check - using Groq cloud inference
+    # if ! curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
+    #     print_error "Ollama server stopped unexpectedly"
+    #     break
+    # fi
     
     if ! curl -s http://127.0.0.1:8081/ > /dev/null 2>&1; then
         print_error "Backend server stopped unexpectedly"

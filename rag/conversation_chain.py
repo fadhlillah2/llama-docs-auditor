@@ -14,24 +14,28 @@ class ConversationChain:
         """Get context window limits for different models."""
         limits = {
             "llama-3.3-70b-versatile": {
-                "max_tokens": 4000,  # Excellent limit for llama-3.3-70b
-                "max_context_chars": 8000,
-                "max_memory_turns": 6
+                "max_tokens": 6000,  # Excellent limit for llama-3.3-70b (can handle more context)
+                "max_context_chars": 16000,  # Increased for better document coverage
+                "max_memory_turns": 8,
+                "max_retrieved_docs": 10  # Retrieve more relevant documents
             },
             "llama3.2:3b-instruct-q4_0": {
                 "max_tokens": 2000,  # Good limit for llama3.2:3b
-                "max_context_chars": 4000,
-                "max_memory_turns": 4
+                "max_context_chars": 6000,  # Increased from 4000
+                "max_memory_turns": 4,
+                "max_retrieved_docs": 6
             },
             "llama2": {
                 "max_tokens": 3500,
-                "max_context_chars": 6000,
-                "max_memory_turns": 5
+                "max_context_chars": 8000,  # Increased from 6000
+                "max_memory_turns": 5,
+                "max_retrieved_docs": 8
             },
             "default": {
-                "max_tokens": 1500,
-                "max_context_chars": 2500,
-                "max_memory_turns": 2
+                "max_tokens": 2000,  # Increased from 1500
+                "max_context_chars": 5000,  # Increased from 2500
+                "max_memory_turns": 3,
+                "max_retrieved_docs": 6
             }
         }
         return limits.get(self.model_name, limits["default"])
@@ -73,23 +77,30 @@ class ConversationChain:
     
     def create_retrieval_qa_chain(self, chat_model, retriever):
         """Creates an optimized retrieval QA chain for contract analysis."""
-        
-        # Optimized system template for contracts within token limits
-        system_template = """You are a contract analysis expert. Analyze the provided context and answer questions about contracts, legal terms, and obligations.
 
-INSTRUCTIONS:
-- Base answers ONLY on the provided context
-- If information is not in context, respond "I don't know"
-- For yes/no questions, start with "Yes" or "No" and explain
-- Reference specific sections when possible
-- Be concise but thorough
+        # Enhanced system template for better contract analysis and synthesis
+        system_template = """You are an expert contract analysis assistant with deep knowledge of legal documents, terms, and obligations.
 
-CONTEXT:
+YOUR ROLE:
+- Analyze contract documents thoroughly and answer questions about them
+- Synthesize information across multiple sections when relevant
+- Provide comprehensive, well-structured answers
+- Reference specific sections, clauses, and terms from the document
+
+INSTRUCTIONS FOR ANSWERING:
+1. READ THE ENTIRE CONTEXT CAREFULLY - Look for all relevant information across sections
+2. SYNTHESIZE INFORMATION - If the question relates to multiple topics, connect the information coherently
+3. BE COMPREHENSIVE - Provide complete answers that address all aspects of the question
+4. CITE SOURCES - Reference specific sections, articles, or clauses when mentioning facts
+5. CLARIFY TERMS - Explain legal or technical terms when they appear in your answer
+6. IF INCOMPLETE - If you find partial information, state what you know and what is not covered in the document
+
+CONTEXT FROM DOCUMENT:
 {context}
 
-QUESTION: {question}"""
+Remember: Provide thorough, well-synthesized answers that help the user understand the contract fully."""
 
-        user_template = "{question}"
+        user_template = "Question: {question}\n\nProvide a comprehensive answer based on the document context above."
         messages = [
             SystemMessagePromptTemplate.from_template(system_template),
             HumanMessagePromptTemplate.from_template(user_template)
@@ -98,12 +109,12 @@ QUESTION: {question}"""
 
         # Use windowed memory to prevent context overflow
         memory = ConversationBufferWindowMemory(
-            memory_key='chat_history', 
+            memory_key='chat_history',
             return_messages=True,
             output_key='answer',  # Specify which output to store in memory
             k=self.context_limits["max_memory_turns"]  # Limit conversation history
         )
-        
+
         # Create custom chain with context optimization
         conversation_chain = OptimizedConversationalRetrievalChain.from_llm(
             llm=chat_model,
@@ -116,7 +127,7 @@ QUESTION: {question}"""
             return_source_documents=True,
             verbose=False
         )
-        
+
         return conversation_chain
 
 

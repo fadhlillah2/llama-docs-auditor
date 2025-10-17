@@ -7,21 +7,25 @@ flask-cors>=6.0.0
 werkzeug>=3.1.0
 python-dotenv>=1.1.0
 
-# LangChain RAG Pipeline - Updated imports to avoid deprecation warnings
+# LangChain RAG Pipeline
 langchain>=0.3.20
 langchain-community>=0.3.20
-langchain-ollama>=0.3.0
+langchain-groq>=0.2.0  # Groq integration for LLM
 
 # Document Processing
 pypdf>=6.0.0
-
-# Local LLM Integration
-ollama>=0.5.0
+python-docx>=0.8.11
+pdfplumber>=0.11.0
+beautifulsoup4>=4.12.0
 
 # Machine Learning & Embeddings
 scikit-learn>=1.7.0
 numpy>=2.3.0
-transformers>=4.56.0  # CRITICAL: Required for token calculations - was missing!
+transformers>=4.56.0  # Required for token calculations
+# sentence-transformers>=3.0.0  # Using ChromaDB default embeddings instead
 
-# Note: ChromaDB intentionally excluded due to dependency conflicts
-# The system uses in-memory retriever as fallback, which works perfectly
+# Vector Store & Search
+chromadb>=0.5.0
+
+# Note: Ollama excluded - using Groq for LLM + HuggingFace for embeddings
+# The system uses hybrid semantic+keyword search with in-memory retriever as fallback

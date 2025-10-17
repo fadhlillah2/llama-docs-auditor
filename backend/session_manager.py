@@ -11,9 +11,19 @@ from typing import Dict, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import sys
-sys.path.append('../rag')
 
-from rag_pipeline import RAGPipeline
+# Fix import path for RAG pipeline
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+rag_path = os.path.join(project_root, 'rag')
+if rag_path not in sys.path:
+    sys.path.insert(0, rag_path)
+
+try:
+    from rag_pipeline import RAGPipeline
+except ImportError as e:
+    print(f"⚠️ Warning: Could not import RAGPipeline: {e}")
+    # Fallback - will be handled later
+    RAGPipeline = None
 
 @dataclass
 class SessionData:
@@ -93,39 +103,48 @@ class SessionManager:
                 if not session:
                     print(f"❌ Session not found: {session_id[:8]}...")
                     return False
-                
+
                 if not self._is_session_valid(session):
                     print(f"❌ Session expired: {session_id[:8]}...")
                     self._cleanup_session(session_id)
                     return False
-                
+
                 # Check if QA chain already exists
                 if session.qa_chain is not None:
                     session.last_accessed = datetime.now()
                     print(f"✓ QA chain already initialized for session: {session_id[:8]}...")
                     return True
-                
-                # Initialize RAG pipeline
+
+                # Verify file exists before processing
+                if not os.path.exists(session.file_path):
+                    print(f"❌ File not found: {session.file_path}")
+                    return False
+
+                print(f"📁 Using file path: {session.file_path}")
+
+                # Initialize RAG pipeline with FULL FILE PATH
                 print(f"🚀 Initializing QA chain for session: {session_id[:8]}...")
                 rag_pipeline = RAGPipeline(
-                    uploaded_file=os.path.basename(session.file_path),
+                    uploaded_file=session.file_path,  # FIXED: Pass full path, not just filename
                     vector_db_path=self.vector_db_path
                 )
-                
+
                 qa_chain = rag_pipeline.qa_chain()
                 if qa_chain is None:
                     print(f"❌ Failed to create QA chain for session: {session_id[:8]}...")
                     return False
-                
+
                 # Store QA chain in session
                 session.qa_chain = qa_chain
                 session.last_accessed = datetime.now()
-                
+
                 print(f"✓ QA chain initialized successfully for session: {session_id[:8]}...")
                 return True
-                
+
             except Exception as e:
                 print(f"❌ Failed to initialize QA chain for session {session_id[:8]}...: {e}")
+                import traceback
+                traceback.print_exc()  # Print full traceback for debugging
                 return False
     
     def get_qa_chain(self, session_id: str) -> Optional[Any]:
@@ -214,7 +233,40 @@ class SessionManager:
         """Manually cleanup a specific session."""
         with self.lock:
             return self._cleanup_session(session_id)
-    
+
+    def get_session_documents(self, session_id: str) -> Optional[list]:
+        """Get documents from session for direct search."""
+        with self.lock:
+            session = self.sessions.get(session_id)
+            if not session:
+                return None
+
+            try:
+                # Try to get documents from the QA chain or RAG pipeline
+                if session.qa_chain and hasattr(session.qa_chain, 'retriever'):
+                    # If the QA chain has a retriever, try to get documents from it
+                    retriever = session.qa_chain.retriever
+                    if hasattr(retriever, '_chunks'):
+                        return retriever._chunks
+                    elif hasattr(retriever, 'docstore') and retriever.docstore:
+                        # Try to get from docstore
+                        docs = list(retriever.docstore.docs.values())
+                        return docs
+
+                # Fallback: Try to load documents from file path
+                if session.file_path:
+                    from data_loader import LoadDocuments
+                    loader = LoadDocuments()
+                    documents = loader.load_document(session.file_path)
+                    if documents:
+                        return documents
+
+                return None
+
+            except Exception as e:
+                print(f"⚠️ Error getting session documents: {e}")
+                return None
+
     def cleanup_all_sessions(self) -> int:
         """Cleanup all expired sessions."""
         with self.lock:

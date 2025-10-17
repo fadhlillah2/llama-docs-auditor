@@ -55,19 +55,35 @@ if ! command -v npm &> /dev/null; then
 fi
 print_success "npm found: $(npm --version)"
 
-# 2. Check/Install Ollama
-print_status "Checking Ollama installation..."
-if ! command -v ollama &> /dev/null; then
-    print_warning "Ollama not found. Please install Ollama first:"
-    echo ""
-    echo "  macOS:   brew install ollama"
-    echo "  Linux:   curl -fsSL https://ollama.ai/install.sh | sh"
-    echo "  Other:   Download from https://ollama.ai"
-    echo ""
-    print_error "Please install Ollama and run this script again."
-    exit 1
+# 2. Check/Install Ollama - DEPRECATED (using Groq instead)
+# print_status "Checking Ollama installation..."
+# if ! command -v ollama &> /dev/null; then
+#     print_warning "Ollama not found. Please install Ollama first:"
+#     echo ""
+#     echo "  macOS:   brew install ollama"
+#     echo "  Linux:   curl -fsSL https://ollama.ai/install.sh | sh"
+#     echo "  Other:   Download from https://ollama.ai"
+#     echo ""
+#     print_error "Please install Ollama and run this script again."
+#     exit 1
+# fi
+# print_success "Ollama found: $(ollama --version 2>/dev/null | head -1)"
+
+# 2. Check Groq API Key Configuration
+print_status "Checking Groq API key configuration..."
+if [ ! -f ".env" ]; then
+    print_warning ".env file not found. Creating from example..."
+    cp .env.example .env
+    print_warning "Please edit .env file and add your GROQ_API_KEY"
+    echo "Get your API key from: https://console.groq.com/keys"
+else
+    if grep -q "gsk_your-groq-api-key-here" .env; then
+        print_warning "Please update GROQ_API_KEY in .env file with your actual API key"
+        echo "Get your API key from: https://console.groq.com/keys"
+    else
+        print_success "Groq API key configured"
+    fi
 fi
-print_success "Ollama found: $(ollama --version 2>/dev/null | head -1)"
 
 # 3. Setup Python Environment
 print_status "Setting up Python virtual environment..."
@@ -99,51 +115,23 @@ else
 fi
 cd ..
 
-# 6. Start Ollama and Pull Models
-print_status "Starting Ollama and pulling required models..."
+# 6. Test Groq API Connection
+print_status "Testing Groq API connection..."
 
-# Check if Ollama is running
-if ! curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-    print_warning "Ollama server not running. Starting Ollama in background..."
-    ollama serve &
-    OLLAMA_PID=$!
-    
-    # Wait for Ollama to start
-    for i in {1..30}; do
-        if curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-            break
+# Test Groq API by making a simple request
+if command -v curl &> /dev/null; then
+    if grep -q "GROQ_API_KEY=" .env && ! grep -q "GROQ_API_KEY=gsk_your-groq-api-key-here" .env; then
+        source .env
+        if curl -s -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models > /dev/null 2>&1; then
+            print_success "Groq API connection verified"
+        else
+            print_warning "Could not verify Groq API connection. Please check your API key."
         fi
-        sleep 1
-    done
-    
-    if ! curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-        print_error "Failed to start Ollama server"
-        exit 1
+    else
+        print_warning "Please configure GROQ_API_KEY in .env file first"
     fi
-    print_success "Ollama server started"
 else
-    print_success "Ollama server is already running"
-fi
-
-# Pull required models
-print_status "Pulling Ollama models (this may take several minutes)..."
-
-# Pull the main model (llama3.2:3b-instruct-q4_0)
-if ! ollama list | grep -q "llama3.2:3b-instruct-q4_0"; then
-    print_status "Pulling llama3.2:3b-instruct-q4_0 model..."
-    ollama pull llama3.2:3b-instruct-q4_0
-    print_success "llama3.2:3b-instruct-q4_0 model downloaded"
-else
-    print_success "llama3.2:3b-instruct-q4_0 model already available"
-fi
-
-# Pull the embedding model (nomic-embed-text)
-if ! ollama list | grep -q "nomic-embed-text:latest"; then
-    print_status "Pulling nomic-embed-text:latest model..."
-    ollama pull nomic-embed-text:latest
-    print_success "nomic-embed-text:latest model downloaded"
-else
-    print_success "nomic-embed-text:latest model already available"
+    print_warning "curl not available for API testing"
 fi
 
 # 7. Create data directories
@@ -158,7 +146,7 @@ echo "🎉 Setup Complete!"
 echo "==================="
 echo ""
 print_success "All dependencies installed and configured"
-print_success "Ollama models downloaded and ready"
+print_success "Groq API configured and ready"
 print_success "Project ready to run"
 echo ""
 echo "Next steps:"
@@ -166,9 +154,7 @@ echo "1. Run the project:    ./run-project.sh"
 echo "2. Access frontend:    http://localhost:3000"
 echo "3. Backend API:        http://127.0.0.1:8081"
 echo ""
-print_warning "Note: First AI query will take 3-5 minutes as the model loads"
+print_success "Note: AI responses will be fast with Groq cloud inference (10-30 seconds)"
 
-# Keep Ollama running if we started it
-if [ ! -z "$OLLAMA_PID" ]; then
-    print_status "Ollama server will continue running in background (PID: $OLLAMA_PID)"
-fi
+# No background services needed - Groq is cloud-based!
+print_success "Setup complete - no local services needed to run in background"

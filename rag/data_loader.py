@@ -1,9 +1,8 @@
-from langchain_community.document_loaders import PyPDFLoader,PyMuPDFLoader,DirectoryLoader 
-from langchain_community.document_loaders import Docx2txtLoader, UnstructuredWordDocumentLoader
-
-from langchain_community.document_loaders import TextLoader
-
+import os
 import tempfile
+from langchain_community.document_loaders import PyPDFLoader,PyMuPDFLoader,DirectoryLoader
+from langchain_community.document_loaders import Docx2txtLoader, UnstructuredWordDocumentLoader
+from langchain_community.document_loaders import TextLoader
 
 class LoadDocuments:
     def __init__(self, uploaded_files):
@@ -12,8 +11,15 @@ class LoadDocuments:
     def load_document(self):
         """Loads the specific uploaded document."""
         try:
-            file_path = f'uploads/{self.uploaded_files}'
-            print(f"Loading file: {file_path}")
+            # Handle both full file paths and relative paths
+            if os.path.isabs(self.uploaded_files) or self.uploaded_files.startswith('/') or '../' in self.uploaded_files:
+                # Full path provided (from session manager) or contains relative path components
+                file_path = self.uploaded_files
+                print(f"Loading file (full path): {file_path}")
+            else:
+                # Simple filename provided, construct path
+                file_path = f'uploads/{self.uploaded_files}'
+                print(f"Loading file (relative): {file_path}")
             
             documents = []
             filename = self.uploaded_files.lower()

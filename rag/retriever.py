@@ -128,17 +128,19 @@ class SimpleRetriever(BaseRetriever):
         print(f"🔍 Hybrid search retrieved {len(relevant_docs)} relevant documents in {query_time:.2f}s")
         return relevant_docs
     
-    def _hybrid_search(self, query: str, top_k: int = 4) -> List[Document]:
+    def _hybrid_search(self, query: str, top_k: int = 8) -> List[Document]:
         """Perform hybrid search combining semantic and keyword-based retrieval."""
-        
-        # 1. Semantic search using embeddings
-        semantic_results = self._semantic_search(query, top_k=8)  # Get more candidates
-        
+        print(f"🔍 HYBRID RETRIEVAL STARTED: Query='{query}'")
+        print(f"   Available chunks: {len(self._chunks)}")
+
+        # 1. Semantic search using embeddings - get more candidates for better synthesis
+        semantic_results = self._semantic_search(query, top_k=15)  # Increased from 12
+
         # 2. Keyword search using TF-IDF (if available)
         keyword_results = []
         if self._tfidf_vectorizer and self._tfidf_matrix is not None:
-            keyword_results = self._keyword_search(query, top_k=8)
-        
+            keyword_results = self._keyword_search(query, top_k=10)  # Increased from 8
+
         # 3. Combine and rank results
         if keyword_results:
             combined_results = self._combine_search_results(semantic_results, keyword_results, query)
@@ -146,12 +148,30 @@ class SimpleRetriever(BaseRetriever):
         else:
             combined_results = semantic_results
             search_type = "semantic-only"
-        
+
         # 4. Apply contract-specific boosting
-        final_results = self._apply_contract_boosting(combined_results, query)
-        
-        print(f"🔍 {search_type} search: semantic={len(semantic_results)}, keyword={len(keyword_results)}, final={len(final_results)}")
-        
+        final_results_docs = self._apply_contract_boosting(combined_results, query)
+
+        # 5. FALLBACK: If query contains section reference and no exact match found, do exact text search
+        if self._contains_section_reference(query) and not self._has_exact_section_match(combined_results, query):
+            print(f"   Performing section reference fallback search...")
+            exact_matches = self._exact_section_search(query)
+            if exact_matches:
+                # Add exact matches to results (convert to tuples first)
+                exact_matches_docs = [(doc, score, 'exact-search') for doc, score, search_type in exact_matches]
+                combined_results = exact_matches_docs + combined_results
+                search_type += "+exact-fallback"
+                print(f"   ✓ Found {len(exact_matches)} exact section matches")
+                final_results_docs = self._apply_contract_boosting(combined_results, query)
+
+        final_results = final_results_docs
+
+        # Return more results to allow context optimization to work better
+        # The ConversationChain will handle limiting to appropriate context size
+        num_results = min(top_k, len(final_results))
+        print(f"   ✓ {search_type}: semantic={len(semantic_results)}, keyword={len(keyword_results)}")
+        print(f"   ✓ Returning {num_results}/{len(final_results)} relevant documents")
+
         return final_results[:top_k]
     
     def _semantic_search(self, query: str, top_k: int = 8) -> List[tuple]:
@@ -278,6 +298,14 @@ class SimpleRetriever(BaseRetriever):
             'medium': ['party', 'parties', 'shall', 'hereby', 'whereas', 'therefore', 'provision'],
             'low': ['legal', 'law', 'court', 'dispute', 'jurisdiction', 'governing']
         }
+
+        # Section reference boosting - very high priority for exact section matches
+        section_patterns = [
+            r'Section\s+[IVX]+\.\d+',      # Section IV.15, Section II.3, etc.
+            r'Article\s+[IVX]+',           # Article IV, Article II, etc.
+            r'[IVX]+\.\d+',               # IV.15, II.3, etc.
+            r'Section\s+[A-Za-z]+\.\d+',  # Section A.1, Section B.2, etc.
+        ]
         
         query_lower = query.lower()
         boosted_results = []
@@ -285,7 +313,15 @@ class SimpleRetriever(BaseRetriever):
         for doc, score, search_type in results:
             boost_factor = 1.0
             doc_content_lower = doc.page_content.lower()
-            
+
+            # Apply section reference boosting (highest priority)
+            import re
+            for pattern in section_patterns:
+                if re.search(pattern, query, re.IGNORECASE) and re.search(pattern, doc.page_content, re.IGNORECASE):
+                    boost_factor += 0.5  # Very high boost for section matches
+                    print(f"🎯 Section boost applied for pattern: {pattern}")
+                    break
+
             # Apply keyword-based boosting
             for level, keywords in contract_keywords.items():
                 for keyword in keywords:
@@ -308,6 +344,75 @@ class SimpleRetriever(BaseRetriever):
         # Sort by final score and return documents only
         boosted_results.sort(key=lambda x: x[1], reverse=True)
         return [doc for doc, score, search_type in boosted_results]
+
+    def _contains_section_reference(self, query: str) -> bool:
+        """Check if query contains a section reference."""
+        import re
+        section_patterns = [
+            r'Section\s+[IVX]+\.\d+',
+            r'Article\s+[IVX]+',
+            r'[IVX]+\.\d+',
+            r'Section\s+[A-Za-z]+\.\d+',
+        ]
+        for pattern in section_patterns:
+            if re.search(pattern, query, re.IGNORECASE):
+                print(f"🔍 DEBUG: Section reference found with pattern '{pattern}' in query: '{query}'")
+                return True
+        print(f"🔍 DEBUG: No section reference found in query: '{query}'")
+        return False
+
+    def _has_exact_section_match(self, results: List[tuple], query: str) -> bool:
+        """Check if results contain exact section match."""
+        import re
+        section_patterns = [
+            r'Section\s+[IVX]+\.\d+',
+            r'Article\s+[IVX]+',
+            r'[IVX]+\.\d+',
+            r'Section\s+[A-Za-z]+\.\d+',
+        ]
+        print(f"🔍 DEBUG: Checking {len(results)} results for exact section match")
+        for i, (doc, score, search_type) in enumerate(results):
+            for pattern in section_patterns:
+                query_match = re.search(pattern, query, re.IGNORECASE)
+                doc_match = re.search(pattern, doc.page_content, re.IGNORECASE)
+                if query_match and doc_match:
+                    print(f"🔍 DEBUG: Exact section match found in result {i} with pattern '{pattern}'")
+                    return True
+        print(f"🔍 DEBUG: No exact section match found in any result")
+        return False
+
+    def _exact_section_search(self, query: str, limit: int = 3) -> List[tuple]:
+        """Perform exact text search for section references."""
+        import re
+        matches = []
+        query_patterns = []
+
+        print(f"🔍 DEBUG: Starting exact section search for query: '{query}'")
+
+        # Extract section patterns from query
+        if 'IV.15' in query:
+            query_patterns.append(r'IV\.15')
+        if 'Section IV.15' in query:
+            query_patterns.append(r'Section\s+IV\.15')
+
+        print(f"🔍 DEBUG: Query patterns to search: {query_patterns}")
+        print(f"🔍 DEBUG: Searching through {len(self._chunks)} chunks")
+
+        # Search for exact matches
+        for pattern in query_patterns:
+            print(f"🔍 DEBUG: Searching for pattern: '{pattern}'")
+            for i, chunk in enumerate(self._chunks):
+                if re.search(pattern, chunk.page_content, re.IGNORECASE):
+                    # High score for exact matches
+                    matches.append((chunk, 2.0, 'exact-search'))
+                    print(f"🎯 Exact match found: {pattern} in chunk {i}")
+                    if len(matches) >= limit:
+                        break
+            if len(matches) >= limit:
+                break
+
+        print(f"🔍 DEBUG: Exact search completed, found {len(matches)} matches")
+        return matches
     
     def _update_avg_query_time(self, new_time: float) -> None:
         """Update running average of query times."""
@@ -331,28 +436,33 @@ class Retriever:
         
     def get_retriever(self):
         try:
+            print(f"🚨🚨🚨 RETRIEVER CREATION STARTED 🚨🚨🚨")
+            print(f"🚨 DEBUG: Documents: {len(self.documents) if self.documents else 0}")
+
             if not self.documents:
-                print("No documents provided to retriever")
+                print("🚨 No documents provided to retriever")
                 return None
-                
-            print(f"Processing {len(self.documents)} documents")
-            
+
+            print(f"🚨 Processing {len(self.documents)} documents")
+
             # Try ChromaDB first for better performance and persistence
             if self._use_chromadb:
+                print(f"🚨 Attempting to create ChromaDB retriever...")
                 chromadb_retriever = self._create_chromadb_retriever()
                 if chromadb_retriever:
-                    print("✓ Using ChromaDB-based retriever with connection pooling")
+                    print("🚨✓ Using ChromaDB-based retriever with connection pooling")
                     return chromadb_retriever
                 else:
-                    print("⚠️ ChromaDB failed, falling back to in-memory retriever")
-            
+                    print("🚨⚠️ ChromaDB failed, falling back to in-memory retriever")
+
             # Fallback to simple in-memory retriever
+            print(f"🚨 Creating SimpleRetriever with debug capabilities...")
             retriever = SimpleRetriever(self.documents, self.embedding)
-            print("✓ Using in-memory retriever")
+            print("🚨✓ Using in-memory SimpleRetriever with debug logging")
             return retriever
-            
+
         except Exception as e:
-            print(f"Error creating retriever: {e}")
+            print(f"🚨 Error creating retriever: {e}")
             import traceback
             traceback.print_exc()
             return None
