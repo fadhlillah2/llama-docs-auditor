@@ -16,9 +16,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 📋 Prerequisites
 - **Python 3.8+**
 - **Node.js 18+**
-- **Groq API Key** - Get from https://console.groq.com/keys
+- **Groq API Key** - Get from https://console.groq.com/keys (REQUIRED)
   - Add to .env file: `GROQ_API_KEY=gsk_your-actual-key`
-- **Ollama** (optional, for local model fallback) - Install from [ollama.ai](https://ollama.ai)
+- **Ollama** (deprecated, optional fallback only) - Install from [ollama.ai](https://ollama.ai)
   - macOS: `brew install ollama`
   - Linux: `curl -fsSL https://ollama.ai/install.sh | sh`
 
@@ -46,7 +46,7 @@ High-Precision Contract Advisor RAG is an AI-powered contract analysis system us
 - `rag/chunk_documents.py` - Text splitting into 800-char chunks with 100-char overlap
 - `rag/embedding.py` - Vector embeddings via HuggingFace `sentence-transformers/all-MiniLM-L6-v2`
 - `rag/retriever.py` - ChromaDB vector store with persistent caching (1000+ embeddings)
-- `rag/chat_model.py` - Groq LLM integration with 300s timeout (primary) + Ollama fallback
+- `rag/chat_model.py` - Groq LLM integration with 300s timeout (primary) + Ollama fallback (deprecated)
 - `rag/conversation_chain.py` - LangChain retrieval QA chain with prompt templating
 
 **Frontend (Next.js + React)**
@@ -87,27 +87,27 @@ source .venv/bin/activate
 # Run Flask server (port 8081)
 cd backend && python3 server.py
 
-# Run all backend tests
-cd backend && python3 -m unittest discover -v
+# Run tests
+cd backend && python3 -m unittest discover -v          # All tests
+python3 -m unittest backend.test_server -v             # Server tests
+python3 -m unittest backend.test_rag_pipeline -v       # RAG pipeline tests
+python3 -m unittest backend.test_config -v             # Config tests
 
-# Run specific test file
-python3 -m unittest backend.test_server -v
-python3 -m unittest backend.test_rag_pipeline -v
+# Code quality (individual commands)
+black backend rag                                       # Format code
+isort backend rag                                       # Sort imports
+mypy backend rag                                        # Type checking
+flake8 backend rag                                      # Lint code
 
-# Format code (Black, 88-char lines)
-black backend rag
+# Code quality (all in one command)
+cd backend && black . && isort . && mypy . && flake8 .
 
-# Sort imports (isort)
-isort backend rag
-
-# Check type hints (mypy)
-mypy backend rag
-
-# Lint code (flake8)
-flake8 backend rag
-
-# Run with coverage
+# Run tests with coverage and detailed output
 cd backend && python3 -m unittest discover -v --tb=short
+
+# Dependency management
+pip list --outdated                                    # Check outdated packages
+pip install -r requirements-working.txt --upgrade      # Update dependencies (tested version)
 ```
 
 ### Frontend Development
@@ -128,24 +128,31 @@ npm run format:check # Check Prettier formatting
 npm run check-all    # Run type-check, lint, and format:check
 npm run fix-all      # Run lint:fix and format
 npm run clean        # Clean build artifacts
+
+# Dependency management
+npx depcheck         # Check for unused dependencies
+npm outdated         # Check for outdated packages
 ```
 
-### Ollama Management (Optional Fallback)
+### Ollama Management (Deprecated Fallback)
 ```bash
+# Note: Ollama is deprecated. Use Groq API for optimal performance.
 ollama serve         # Start Ollama server (port 11434)
 ollama list          # List downloaded models
-ollama pull llama3.2:3b-instruct-q4_0      # Fallback model (3B, quantized)
-ollama pull nomic-embed-text:latest        # Fallback embedding model
+ollama pull llama3.2:3b-instruct-q4_0      # Legacy fallback model (3B, quantized)
+ollama pull nomic-embed-text:latest        # Legacy fallback embedding model
 ```
 
 ### Environment Configuration
 ```bash
-# Copy example and customize (50+ configurable settings)
+# Copy example and customize (80+ configurable settings)
 cp .env.example .env
 
-# Critical variables:
-# GROQ_API_KEY=gsk_your-actual-key (REQUIRED)
+# Required variables:
+# GROQ_API_KEY=gsk_your-actual-key (REQUIRED - get from https://console.groq.com/keys)
 # FLASK_ENV=development|production|testing
+
+# Important configuration:
 # GROQ_MODEL_NAME=llama-3.3-70b-versatile
 # EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 # MAX_UPLOAD_SIZE=16777216 (16MB)
@@ -156,6 +163,12 @@ cp .env.example .env
 # FLASK_SECRET_KEY=your-secret-key-here-change-in-production (REQUIRED for production)
 # API_KEYS=key1,key2,key3 (for production authentication)
 # ALLOWED_ORIGINS=https://yourdomain.com (CORS for production)
+
+# See .env.example for comprehensive configuration options including:
+# - Rate limiting settings
+# - Feature flags (hybrid search, query caching, batch processing)
+# - Monitoring and logging configuration
+# - SSL/TLS settings for production
 ```
 
 ## API Reference
@@ -270,13 +283,14 @@ cd frontend && npm run fix-all
 ## Deployment & Performance
 
 ### Performance Characteristics
-- **First query**: 10-30 seconds (Groq cloud inference, no local model loading)
+- **First query**: 10-30 seconds (Groq cloud inference, fast API initialization)
 - **Subsequent queries**: 5-15 seconds (cached embeddings + retrieval)
 - **Document processing**: ~1 chunk per second (800-char chunks with 100-char overlap)
 - **Vector store**: ChromaDB with persistence between requests
 - **Embeddings**: HuggingFace sentence-transformers (local, fast)
 - **Concurrent sessions**: 5 sessions max per IP (configurable)
 - **File processing**: PDF, DOCX, TXT with multiple parsing libraries
+- **Rate limits**: 30 queries/min per IP (configurable via environment)
 
 ### Scaling Considerations
 - **Global state**: `qa_chain` stored per session (not thread-safe for concurrent uploads)
@@ -289,8 +303,9 @@ cd frontend && npm run fix-all
 | Issue | Solution |
 |-------|----------|
 | **Port conflict (8081)** | Change SERVER_PORT in .env or `backend/config.py` |
-| **Groq API key missing** | Add `GROQ_API_KEY=gsk_...` to .env file |
+| **Groq API key missing** | Add `GROQ_API_KEY=gsk_...` to .env file (REQUIRED) |
 | **Groq API errors** | Check API key validity and rate limits at https://console.groq.com/ |
+| **Groq rate limits** | Monitor usage at https://console.groq.com/ - default 30 requests/min |
 | **Dependency conflicts** | Always use `.venv`: `source .venv/bin/activate` |
 | **Query before upload** | `qa_chain` initialized only after successful file upload |
 | **Embedding model errors** | Ensure sentence-transformers installed: `pip install sentence-transformers` |
@@ -334,8 +349,11 @@ project/
 │   └── queries/         # Query result cache
 ├── setup-project.sh     # One-time setup automation
 ├── run-project.sh       # Start all services
-├── requirements-working.txt # Working dependencies (Groq + HuggingFace)
-├── .env.example         # Environment variables template (50+ settings)
+├── requirements-working.txt # Tested dependencies (Groq + HuggingFace)
+├── requirements.txt         # Standard dependencies
+├── requirements-dev.txt     # Development dependencies
+├── requirements.minimal.txt # Minimal dependencies for testing
+├── .env.example         # Environment variables template (80+ settings)
 ├── pyproject.toml       # Python code quality standards
 └── CLAUDE.md            # This file
 ```
@@ -343,9 +361,22 @@ project/
 ## Debugging Tips
 
 - **Enable debug mode**: Set `FLASK_ENV=development` (enables stack traces)
-- **Check Groq API**: Verify API key with `curl -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models`
+- **Check Groq API**: Verify API key and connectivity:
+  ```bash
+  # Test API key validity
+  curl -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models
+
+  # Test model availability and response time
+  curl -X POST https://api.groq.com/openai/v1/chat/completions \
+    -H "Authorization: Bearer $GROQ_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": "Hello"}], "max_tokens": 10}'
+  ```
 - **Monitor logs**: Backend logs to `logs/app.log` (rotated at 10MB)
 - **Inspect embeddings**: Check `cache/embeddings/` for HuggingFace embedding files
 - **Test endpoints manually**: Use `curl` or Postman against `http://127.0.0.1:8081`
 - **Frontend debugging**: Browser DevTools + `npm run dev` for hot reload
 - **Dependency issues**: Use `requirements-working.txt` for tested dependencies
+- **ChromaDB issues**: Delete `data/chroma_db/` directory and re-upload document
+- **Session issues**: Clear browser cookies or wait 30 minutes for session timeout
+- **Rate limiting**: Check `backend/config.py` for current rate limit settings

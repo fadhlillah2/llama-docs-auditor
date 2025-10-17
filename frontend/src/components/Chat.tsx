@@ -193,7 +193,7 @@ function Chat(): JSX.Element {
       prompt: prompt,
     };
 
-    // Set timeout to 5 minutes for llama3.2:3b-instruct-q4_0 model loading (smaller model loads faster)
+    // Set timeout to 5 minutes for Groq llama-3.3-70b-versatile model processing
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
 
@@ -247,8 +247,8 @@ function Chat(): JSX.Element {
       console.error("Chat API Error:", err);
       
       const error = err as Error;
-      const errorMessage = error.name === 'AbortError' 
-        ? "Request timed out. The llama3.2:3b-instruct-q4_0 model is loading (this can take 1-2 minutes on first use). Please wait a moment and try again."
+      const errorMessage = error.name === 'AbortError'
+        ? "Request timed out. The Groq llama-3.3-70b-versatile model is processing (this can take 10-30 seconds). Please wait a moment and try again."
         : `Error: ${error.message || 'Failed to get response'}`;
       
       // Check if it's a connection error
@@ -290,12 +290,12 @@ function Chat(): JSX.Element {
 
   // Tech stack data with proper typing
   const techStack: TechStackItem[] = [
-    { category: "Large Language Model", technologies: "Ollama llama3.2:3b-instruct-q4_0, Langchain" },
-    { category: "Chunking", technologies: "RecursiveCharacterTextSplitter" },
-    { category: "Vector Store", technologies: "ChromaDB with connection pooling" },
+    { category: "Large Language Model", technologies: "Groq llama-3.3-70b-versatile, Langchain" },
+    { category: "Chunking", technologies: "RecursiveCharacterTextSplitter (800 chars, 100 overlap)" },
+    { category: "Vector Store", technologies: "ChromaDB with persistent caching" },
     { category: "Retriever", technologies: "Hybrid Search (Semantic + Keyword)" },
-    { category: "Generation and Embedding", technologies: "HuggingFace Sentence Transformers" },
-    { category: "Architecture", technologies: "Session-based state management" }
+    { category: "Generation and Embedding", technologies: "HuggingFace Sentence Transformers all-MiniLM-L6-v2" },
+    { category: "Architecture", technologies: "Session-based state management with rate limiting" }
   ];
 
   return (
@@ -378,7 +378,7 @@ function Chat(): JSX.Element {
                 <br />
                 <small>
                   {isLoading ? (
-                    <span className="text-yellow-400">Processing with llama3.2:3b-instruct-q4_0 (may take 1-2 min on first use)...</span>
+                    <span className="text-yellow-400">Processing with Groq llama-3.3-70b-versatile (10-30 seconds)...</span>
                   ) : isConnected ? (
                     <span className="text-green-400">Online</span>
                   ) : (
