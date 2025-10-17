@@ -1,6 +1,6 @@
 import time
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from data_loader import LoadDocuments
 from chunk_documents import ChunkDocuments
 from embedding import EmbeddingsCreator

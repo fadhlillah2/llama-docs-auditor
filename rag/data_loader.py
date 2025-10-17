@@ -1,5 +1,4 @@
 import os
-import tempfile
 from langchain_community.document_loaders import PyPDFLoader,PyMuPDFLoader,DirectoryLoader
 from langchain_community.document_loaders import Docx2txtLoader, UnstructuredWordDocumentLoader
 from langchain_community.document_loaders import TextLoader

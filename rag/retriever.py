@@ -1,11 +1,9 @@
 import gc
 import time
-import re
-from collections import Counter
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import BaseRetriever, Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
-from typing import List, Any, Dict, Optional, Set
+from typing import List, Any, Dict
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer

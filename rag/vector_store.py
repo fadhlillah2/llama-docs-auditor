@@ -1,7 +1,7 @@
 import os
 import time
 import threading
-from typing import Dict, Optional, List
+from typing import Dict, List
 from langchain_community.vectorstores import Chroma
 from langchain.schema import Document
 import chromadb

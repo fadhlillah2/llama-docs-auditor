@@ -57,17 +57,14 @@ class BaseConfig(ABC):
     @abstractmethod
     def get_upload_dir(self) -> str:
         """Get upload directory path."""
-        pass
-    
+
     @abstractmethod
     def get_cors_origins(self) -> list:
         """Get CORS allowed origins."""
-        pass
-    
+
     @abstractmethod
     def is_debug_enabled(self) -> bool:
         """Check if debug mode is enabled."""
-        pass
 
 
 class DevelopmentConfig(BaseConfig):
