@@ -255,7 +255,7 @@ class ConfigValidator:
             ('VECTOR_DB_PATH', os.environ.get('VECTOR_DB_PATH', '../data/chroma_db')),
             ('EMBEDDING_CACHE_DIR', os.environ.get('EMBEDDING_CACHE_DIR', '../cache/embeddings')),
             ('QUERY_CACHE_DIR', os.environ.get('QUERY_CACHE_DIR', '../cache/queries')),
-            ('LOG_FILE', os.environ.get('LOG_FILE', 'logs/app.log')),
+            ('LOG_FILE', os.environ.get('LOG_FILE', 'logs/backend/app.log')),
         ]
         
         for path_name, path_value in paths_to_check:

@@ -1,0 +1,70 @@
+[
+  {
+    "ragas_metrics": {
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.0,
+      "context_recall": 0.0,
+      "context_precision": 0.0,
+      "answer_similarity": 0.0
+    },
+    "performance_metrics": {
+      "avg_response_time": 15.495473199420505,
+      "total_questions": 9,
+      "successful_queries": 9,
+      "error_rate": 0.0
+    },
+    "custom_metrics": {
+      "answer_completeness": 1.0,
+      "context_utilization": 0.35374149659863946,
+      "legal_terminology_usage": 0.5555555555555556
+    },
+    "overall_score": 0.0,
+    "metadata": {
+      "document_path": "/Users/orion_omniscient/Documents/Projects/github-clone/llama-docs-auditor/data/uploads_test/sample_contract.txt",
+      "config": {
+        "document_path": "/Users/orion_omniscient/Documents/Projects/github-clone/llama-docs-auditor/data/uploads_test/sample_contract.txt",
+        "output_dir": "evaluation_results",
+        "num_questions": 3,
+        "include_ragas": false,
+        "benchmark_runs": 3,
+        "create_trends": true,
+        "notification_webhook": null
+      },
+      "timestamp": "2025-10-17T19:39:45.986327",
+      "evaluation_type": "automated"
+    },
+    "timestamp": "2025-10-17T19:39:45.986840"
+  },
+  {
+    "ragas_metrics": {
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.0,
+      "context_recall": 0.0,
+      "context_precision": 0.0,
+      "answer_similarity": 0.0
+    },
+    "performance_metrics": {
+      "avg_response_time": 0.0,
+      "total_questions": 0,
+      "successful_queries": 0,
+      "error_rate": 1.0
+    },
+    "custom_metrics": {},
+    "overall_score": 0.0,
+    "metadata": {
+      "document_path": "/Users/orion_omniscient/Documents/Projects/github-clone/llama-docs-auditor/data/uploads_test/sample_contract.txt",
+      "config": {
+        "document_path": "/Users/orion_omniscient/Documents/Projects/github-clone/llama-docs-auditor/data/uploads_test/sample_contract.txt",
+        "output_dir": "evaluation_results",
+        "num_questions": 1,
+        "include_ragas": false,
+        "benchmark_runs": 3,
+        "create_trends": true,
+        "notification_webhook": null
+      },
+      "timestamp": "2025-10-17T19:50:22.778529",
+      "evaluation_type": "automated"
+    },
+    "timestamp": "2025-10-17T19:50:22.779000"
+  }
+]

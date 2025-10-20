@@ -41,7 +41,7 @@ class BaseConfig(ABC):
     
     # Logging settings
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
-    LOG_FILE = os.environ.get('LOG_FILE', 'logs/app.log')
+    LOG_FILE = os.environ.get('LOG_FILE', 'logs/backend/app.log')
     LOG_ROTATION = os.environ.get('LOG_ROTATION', 'True').lower() == 'true'
     LOG_MAX_SIZE = int(os.environ.get('LOG_MAX_SIZE', '10'))  # MB
     LOG_BACKUP_COUNT = int(os.environ.get('LOG_BACKUP_COUNT', '5'))

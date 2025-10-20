@@ -27,5 +27,14 @@ transformers>=4.56.0  # Required for token calculations
 # Vector Store & Search
 chromadb>=0.5.0
 
+# RAG Evaluation Framework
+ragas>=0.1.0
+datasets>=2.14.0
+
+# Testing and Benchmarking
+psutil>=5.9.0
+matplotlib>=3.6.0
+requests>=2.28.0
+
 # Note: Ollama excluded - using Groq for LLM + HuggingFace for embeddings
 # The system uses hybrid semantic+keyword search with in-memory retriever as fallback

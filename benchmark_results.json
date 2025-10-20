@@ -1,0 +1,57 @@
+{
+  "benchmark_config": {
+    "document_path": "/Users/orion_omniscient/Documents/Projects/github-clone/llama-docs-auditor/data/uploads_test/sample_contract.txt",
+    "num_questions": 5,
+    "concurrent_users": 1,
+    "warmup_queries": 3,
+    "timeout_seconds": 300,
+    "output_file": "benchmark_results.json",
+    "create_plots": true
+  },
+  "performance_metrics": {
+    "response_times": [
+      3.033902645111084,
+      17.528183937072754,
+      17.00306010246277,
+      17.599087953567505,
+      19.99146580696106
+    ],
+    "success_rate": 1.0,
+    "error_rate": 0.0,
+    "throughput_qps": 0.0656540171992918,
+    "memory_usage_mb": 273.1796875,
+    "cpu_usage_percent": 46.0,
+    "total_time": 75.15570044517517,
+    "rag_scores": {
+      "avg_response_time": 14.208692598342896,
+      "success_rate": 1.0,
+      "custom_metrics": {
+        "answer_completeness": 1.0,
+        "context_utilization": 0.3659863945578231,
+        "legal_terminology_usage": 0.6
+      }
+    }
+  },
+  "summary": {
+    "total_queries": 5,
+    "concurrent_users": 1,
+    "avg_response_time": 15.031140089035034,
+    "p95_response_time": 19.99146580696106,
+    "p99_response_time": 19.99146580696106,
+    "throughput_qps": 0.0656540171992918,
+    "success_rate": 1.0,
+    "error_rate": 0.0,
+    "memory_usage_mb": 273.1796875,
+    "cpu_usage_percent": 46.0
+  },
+  "quality_metrics": {
+    "avg_response_time": 14.208692598342896,
+    "success_rate": 1.0,
+    "custom_metrics": {
+      "answer_completeness": 1.0,
+      "context_utilization": 0.3659863945578231,
+      "legal_terminology_usage": 0.6
+    }
+  },
+  "timestamp": "2025-10-17 19:35:21"
+}
