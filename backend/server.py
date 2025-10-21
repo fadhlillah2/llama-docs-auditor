@@ -2,6 +2,7 @@ import time
 import math
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
+from flask_session import Session
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
 import os
@@ -715,6 +716,9 @@ app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_PERMANENT'] = False
 session_timeout_minutes = int(validated_config.get('SESSION_TIMEOUT_MINUTES', '30'))
 app.config['PERMANENT_SESSION_LIFETIME'] = session_timeout_minutes * 60  # Convert to seconds
+
+# Initialize Flask-Session
+Session(app)
 
 # Configure file upload limits using validated config
 max_upload_size = int(validated_config.get('MAX_UPLOAD_SIZE', '16777216'))
