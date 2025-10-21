@@ -626,7 +626,9 @@ a.close-chat {
 }
 
 
-/* Mobile responsive design for chat interface */
+/* Enhanced Mobile Responsive Design */
+
+/* Mobile Chat Interface Improvements */
 @media screen and (max-width: 768px) {
   #assistant-chat {
       width: auto;
@@ -635,7 +637,72 @@ a.close-chat {
       bottom: 70px;
       font-size: 14px;
       max-height: calc(100vh - 120px);
+      border-radius: 12px;
   }
+
+  /* Enhanced Touch Targets */
+  .blanter-msg {
+      padding: 8px 12px;
+  }
+
+  .blanter-msg button {
+      min-height: 44px;
+      min-width: 44px;
+  }
+
+  /* Mobile Chat Input */
+  #chat-input {
+      font-size: 16px; /* Prevents zoom on iOS */
+      padding: 12px 16px;
+      min-height: 44px;
+  }
+
+  /* Mobile Message Bubbles */
+  .chat-bubble {
+      max-width: 85%;
+      font-size: 14px;
+      padding: 12px;
+      line-height: 1.4;
+  }
+
+  /* Mobile Suggestions */
+  .bg-gray-800.rounded-lg.p-3 {
+      padding: 12px;
+  }
+
+  .grid-cols-2.md\:grid-cols-3 {
+      grid-template-columns: 1fr;
+      gap: 8px;
+  }
+
+  /* Mobile Buttons */
+  button.px-3.py-1\.5 {
+      min-height: 40px;
+      font-size: 14px;
+  }
+
+  /* Enhanced Mobile Navigation */
+  .blantershow-chat {
+      bottom: 15px;
+      right: 15px;
+      padding: 12px 16px;
+      font-size: 13px;
+      min-height: 48px;
+      min-width: 48px;
+  }
+
+  /* Mobile Progress Indicators */
+  .bg-gradient-to-r.from-cyan-600.to-blue-600 {
+      background-size: 200% 100%;
+      animation: mobileGradient 2s ease infinite;
+  }
+
+  @keyframes mobileGradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+  }
+}
   
   .chat-bubble {
       max-width: 90%;
@@ -733,7 +800,6 @@ a.close-chat {
   .chat-bubble .ai-response-markdown td {
       padding: 0.3rem 0.5rem;
   }
-}
 
 @media screen and (max-width: 480px) {
   #assistant-chat {
@@ -826,54 +892,97 @@ a.close-chat {
   }
 }
 
-/* Mobile responsive design for upload section */
+/* Enhanced Mobile Upload Section */
 @media screen and (max-width: 768px) {
   .container-fluid {
-      padding: 20px 10px;
+      padding: 16px 8px;
   }
-  
+
   .container-fluid section {
-      padding: 20px 0;
+      padding: 16px 0;
   }
-  
+
+  /* Mobile Drag & Drop */
+  .border-2.border-dashed {
+      border-width: 1px !important;
+      padding: 24px 16px !important;
+  }
+
+  .border-2.border-dashed.rounded-lg {
+      border-radius: 8px !important;
+  }
+
+  /* Mobile Document Preview */
+  .max-w-4xl.mx-auto {
+      max-width: 100%;
+  }
+
+  .bg-gray-800.rounded-lg.p-4 {
+      padding: 12px;
+      border-radius: 8px;
+  }
+
+  .grid-cols-2.md\:grid-cols-4 {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+  }
+
+  /* Mobile Upload Button */
+  .bg-gradient-to-r.from-cyan-600.to-blue-600 {
+      font-size: 16px;
+      padding: 16px 24px;
+      min-height: 48px;
+  }
+
+  /* Mobile Typography */
   .container-fluid h2 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      text-align: center;
   }
-  
+
   .container-fluid h3 {
-      font-size: 1.2rem;
-      margin-bottom: 0.8rem;
+      font-size: 1.1rem;
+      margin-bottom: 0.6rem;
   }
-  
+
   .container-fluid p {
-      font-size: 0.9rem;
-      line-height: 1.4;
-  }
-  
-  /* File input styling for mobile */
-  .form-control {
-      font-size: 14px;
-      padding: 8px;
-  }
-  
-  /* Upload button responsive */
-  .container-fluid button {
-      font-size: 14px;
-      padding: 12px 20px;
-      width: 100%;
-      margin: 10px 0;
-  }
-  
-  /* Upload status message */
-  .container-fluid .mb-4 {
-      margin-bottom: 1rem;
       font-size: 0.875rem;
+      line-height: 1.4;
+      text-align: center;
   }
-  
-  /* Progress indicators mobile */
-  .mb-6 {
-      margin-bottom: 1.5rem;
+
+  /* Mobile Document List */
+  .max-h-60.overflow-y-auto {
+      max-height: 40vh;
+  }
+
+  .bg-gray-700.rounded-lg.p-3 {
+      padding: 8px;
+      border-radius: 6px;
+  }
+
+  /* Mobile Progress Indicators */
+  .w-full.bg-gray-200.rounded-full.h-2 {
+      height: 8px !important;
+  }
+
+  /* Mobile File Icons */
+  .text-2xl {
+      font-size: 1.5rem;
+  }
+
+  /* Mobile Touch Enhancements */
+  button, input[type="file"], .cursor-pointer {
+      min-height: 44px;
+      min-width: 44px;
+  }
+
+  /* Mobile Status Messages */
+  .bg-gray-800.border.border-gray-600 {
+      font-size: 0.875rem;
+      padding: 8px;
+      border-radius: 6px;
   }
 }
 

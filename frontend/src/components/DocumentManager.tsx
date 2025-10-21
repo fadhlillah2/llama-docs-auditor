@@ -9,7 +9,7 @@ interface UploadedDocument {
   uploadDate: string;
   status: 'processed' | 'processing' | 'error';
   sessionId?: string;
-  fileType: string;
+  fileType?: string; // Made optional to handle legacy data
 }
 
 interface DocumentManagerProps {
@@ -35,9 +35,18 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       const savedDocs = localStorage.getItem('uploadedDocuments');
       if (savedDocs) {
         try {
-          setDocuments(JSON.parse(savedDocs));
+          const parsedDocs = JSON.parse(savedDocs);
+          // Ensure all documents have required fields with defaults
+          const normalizedDocs = parsedDocs.map((doc: any) => ({
+            ...doc,
+            fileType: doc.fileType || 'application/octet-stream',
+            status: doc.status || 'processed',
+            uploadDate: doc.uploadDate || new Date().toISOString()
+          }));
+          setDocuments(normalizedDocs);
         } catch (e) {
           console.error('Error loading documents:', e);
+          setDocuments([]); // Reset to empty array on error
         }
       }
     };
@@ -67,22 +76,33 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const getFileIcon = (fileType: string): JSX.Element => {
+  const getFileIcon = (fileType?: string): JSX.Element => {
     const iconClass = "w-8 h-8";
-    
-    if (fileType.includes('pdf')) {
+
+    // Handle undefined fileType or provide default
+    const safeFileType = fileType || '';
+
+    if (safeFileType.includes('pdf')) {
       return (
         <svg className={`${iconClass} text-red-500`} fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
         </svg>
       );
-    } else if (fileType.includes('doc')) {
+    } else if (safeFileType.includes('doc') || safeFileType.includes('word')) {
       return (
         <svg className={`${iconClass} text-blue-500`} fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
         </svg>
       );
+    } else if (safeFileType.includes('text') || safeFileType.includes('txt')) {
+      return (
+        <svg className={`${iconClass} text-green-500`} fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
+          <path fillRule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 102 0V3h4v1a1 1 0 102 0V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+        </svg>
+      );
     } else {
+      // Default icon for unknown file types
       return (
         <svg className={`${iconClass} text-gray-500`} fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />

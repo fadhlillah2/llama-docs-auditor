@@ -6,11 +6,11 @@ const getApiBaseUrl = () => {
   // Check if running in production
   if (process.env.NODE_ENV === 'production') {
     // Use environment variable or default to current host
-    return process.env.REACT_APP_API_URL || `${window.location.protocol}//${window.location.hostname}:8081`;
+    return process.env.REACT_APP_API_URL || `${window.location.protocol}//${window.location.hostname}:8082`;
   }
-  
+
   // Development configuration
-  return process.env.REACT_APP_API_URL || 'http://127.0.0.1:8081';
+  return process.env.REACT_APP_API_URL || 'http://127.0.0.1:8082';
 };
 
 // API configuration

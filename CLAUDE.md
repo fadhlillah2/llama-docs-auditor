@@ -18,9 +18,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Node.js 18+**
 - **Groq API Key** - Get from https://console.groq.com/keys (REQUIRED)
   - Add to .env file: `GROQ_API_KEY=gsk_your-actual-key`
+  - This is the primary LLM provider - Ollama is deprecated
 - **Ollama** (deprecated, optional fallback only) - Install from [ollama.ai](https://ollama.ai)
   - macOS: `brew install ollama`
   - Linux: `curl -fsSL https://ollama.ai/install.sh | sh`
+  - Only used if Groq API is unavailable
 
 ### 🎯 Access Points
 - **Frontend**: http://localhost:3000
@@ -48,6 +50,8 @@ High-Precision Contract Advisor RAG is an AI-powered contract analysis system us
 - `rag/retriever.py` - ChromaDB vector store with persistent caching (1000+ embeddings)
 - `rag/chat_model.py` - Groq LLM integration with 300s timeout (primary) + Ollama fallback (deprecated)
 - `rag/conversation_chain.py` - LangChain retrieval QA chain with prompt templating
+- **Primary LLM**: Groq cloud inference (llama-3.3-70b-versatile) - fast, high-quality responses
+- **Fallback LLM**: Ollama local models (deprecated) - only used if Groq unavailable
 
 **Frontend (Next.js + React)**
 - `frontend/src/pages/index.tsx` - Main layout with Upload and Chat components
@@ -66,7 +70,16 @@ High-Precision Contract Advisor RAG is an AI-powered contract analysis system us
 4. Query (POST /ask_ai with chat history)
    ↓
 5. Retrieve relevant chunks → Generate response via Groq LLM (fast, cloud inference)
+   ↓
+6. Return response with metadata (sources, confidence scores)
 ```
+
+### Performance Characteristics
+- **First query**: 10-30 seconds (Groq cloud inference, API initialization)
+- **Subsequent queries**: 5-15 seconds (cached embeddings, established session)
+- **Document processing**: ~1 chunk per second (800-char chunks with overlap)
+- **Embedding generation**: HuggingFace local models (fast, persistent caching)
+- **Concurrent sessions**: 5 sessions max per IP (configurable via environment)
 
 ## Development Commands
 
@@ -92,6 +105,7 @@ cd backend && python3 -m unittest discover -v          # All tests
 python3 -m unittest backend.test_server -v             # Server tests
 python3 -m unittest backend.test_rag_pipeline -v       # RAG pipeline tests
 python3 -m unittest backend.test_config -v             # Config tests
+python3 -m unittest backend.test_evaluation -v         # Evaluation framework tests
 
 # Code quality (individual commands)
 black backend rag                                       # Format code
@@ -165,10 +179,11 @@ cp .env.example .env
 # ALLOWED_ORIGINS=https://yourdomain.com (CORS for production)
 
 # See .env.example for comprehensive configuration options including:
-# - Rate limiting settings
-# - Feature flags (hybrid search, query caching, batch processing)
+# - Rate limiting settings (5 uploads/5min, 30 queries/min, 100 general/min)
+# - Feature flags (hybrid search, query caching, batch processing, async embeddings)
 # - Monitoring and logging configuration
 # - SSL/TLS settings for production
+# - Ollama fallback configuration (deprecated)
 ```
 
 ## API Reference
@@ -209,12 +224,14 @@ The project includes a comprehensive RAG evaluation framework using RAGAS metric
 - `tests/evaluation/automated_evaluation.py` - Automated evaluation pipeline with trend analysis
 - `tests/performance/benchmark_rag.py` - Performance benchmarking and load testing
 - `backend/test_evaluation.py` - Comprehensive test suite for evaluation framework
+- `evaluation_config.json` - Configurable evaluation settings and parameters
 
 **Evaluation Metrics:**
 - Faithfulness, Answer Relevancy, Context Recall, Context Precision (RAGAS)
 - Answer Similarity, Custom Contract Metrics
 - Response Time, Throughput, Error Rate
 - Performance trend analysis and historical tracking
+- Benchmark comparisons across different document types and query complexities
 
 ### Backend Test Strategy
 - Unit tests in `backend/test_server.py`, `backend/test_rag_pipeline.py`
@@ -246,6 +263,7 @@ python3 -m unittest backend.test_evaluation -v
 
 # Run evaluation framework tests
 python3 tests/evaluation/test_rag_integration.py -v
+python3 tests/evaluation/automated_evaluation.py -v
 
 # Watch mode for frontend tests
 cd frontend && npm run test:watch
@@ -255,6 +273,20 @@ python3 tests/performance/benchmark_rag.py data/uploads_test/sample_contract.txt
 
 # Automated evaluation pipeline
 python3 tests/evaluation/automated_evaluation.py data/uploads_test/sample_contract.txt --questions 15
+
+# RAG evaluation with custom questions
+python3 -m rag.evaluation.rag_evaluator $(pwd)/data/uploads_test/sample_contract.txt
+
+# Quick evaluation test (3 questions, no RAGAS)
+python3 -c "
+from rag.evaluation.rag_evaluator import ContractQAEvaluator
+evaluator = ContractQAEvaluator()
+result = evaluator.evaluate_rag_pipeline(
+    'data/uploads_test/sample_contract.txt',
+    test_questions=['What are the payment terms?', 'When can this contract be terminated?']
+)
+evaluator.print_evaluation_summary(result)
+"
 ```
 
 ### Evaluation Setup & Usage
@@ -337,7 +369,7 @@ cd frontend && npm run fix-all
 ## Deployment & Performance
 
 ### Performance Characteristics
-- **First query**: 10-30 seconds (Groq cloud inference, fast API initialization)
+- **First query**: 10-30 seconds (Groq cloud inference, API initialization)
 - **Subsequent queries**: 5-15 seconds (cached embeddings + retrieval)
 - **Document processing**: ~1 chunk per second (800-char chunks with 100-char overlap)
 - **Vector store**: ChromaDB with persistence between requests
@@ -351,6 +383,26 @@ cd frontend && npm run fix-all
 - **Embedding cache**: Grows with document volume (manageable up to 10GB)
 - **Session management**: 5 sessions max per IP by default (configurable)
 - **Rate limiting**: Enforced at endpoint level (upload/query/general)
+- **Groq API limits**: Monitor usage at https://console.groq.com/ - default 30 requests/min
+
+### Production Deployment
+```bash
+# Production environment setup
+export FLASK_ENV=production
+export FLASK_SECRET_KEY=your-secure-secret-key-here
+export API_KEYS=key1,key2,key3
+export ALLOWED_ORIGINS=https://yourdomain.com
+export SERVER_HOST=0.0.0.0
+export SSL_CERT_PATH=/path/to/cert.pem
+export SSL_KEY_PATH=/path/to/key.pem
+
+# Use production requirements
+pip install -r requirements.txt
+
+# Configure reverse proxy (nginx example)
+# Forward https://yourdomain.com to http://localhost:8081
+# Handle SSL termination and static file serving
+```
 
 ## Common Issues & Solutions
 
