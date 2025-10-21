@@ -2,16 +2,18 @@ import React, { useState } from "react";
 import Upload from "../components/Upload";
 import Chat from "../components/Chat";
 import DocumentManager from "../components/DocumentManager";
+import DocumentAnalyticsDashboard from "../components/DocumentAnalyticsDashboard";
+import DocumentInsights from "../components/DocumentInsights";
 
 const Home: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'documents'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'documents' | 'analytics' | 'insights'>('upload');
 
-  return(  
+  return(
       <div className="App">
         <aside className="side_menu">
           <div className="tab-container">
             <div className="tab-header">
-              <button 
+              <button
                 className={`tab-button ${activeTab === 'upload' ? 'active' : ''}`}
                 onClick={() => setActiveTab('upload')}
               >
@@ -20,7 +22,7 @@ const Home: React.FC = () => {
                 </svg>
                 Upload
               </button>
-              <button 
+              <button
                 className={`tab-button ${activeTab === 'documents' ? 'active' : ''}`}
                 onClick={() => setActiveTab('documents')}
               >
@@ -29,17 +31,37 @@ const Home: React.FC = () => {
                 </svg>
                 Documents
               </button>
+              <button
+                className={`tab-button ${activeTab === 'analytics' ? 'active' : ''}`}
+                onClick={() => setActiveTab('analytics')}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Analytics
+              </button>
+              <button
+                className={`tab-button ${activeTab === 'insights' ? 'active' : ''}`}
+                onClick={() => setActiveTab('insights')}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Insights
+              </button>
             </div>
             <div className="tab-content">
               {activeTab === 'upload' && <Upload />}
               {activeTab === 'documents' && <DocumentManager className="h-full" />}
+              {activeTab === 'analytics' && <DocumentAnalyticsDashboard documents={[]} />}
+              {activeTab === 'insights' && <DocumentInsights />}
             </div>
           </div>
         </aside>
         <section className="chat_box" id="#chat">
           <Chat/>
-        </section>     
-      
+        </section>
+
       </div>
   )
 }

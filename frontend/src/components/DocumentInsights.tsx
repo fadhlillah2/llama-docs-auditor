@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import DocumentAnalyticsDashboard from './DocumentAnalyticsDashboard';
+import EnhancedDocumentInsights from './EnhancedDocumentInsights';
 
 interface Document {
   id: string;
@@ -36,9 +38,23 @@ const DocumentInsights: React.FC<DocumentInsightsProps> = ({ documents = [], cla
   const [analysis, setAnalysis] = useState<DocumentAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'dashboard' | 'detailed'>('dashboard');
 
+  // Load documents from localStorage if no documents passed
   useEffect(() => {
-    if (documents.length > 0 && !selectedDocument) {
+    if (documents.length === 0) {
+      const savedDocs = localStorage.getItem('uploadedDocuments');
+      if (savedDocs) {
+        try {
+          const parsedDocs = JSON.parse(savedDocs);
+          if (parsedDocs.length > 0 && !selectedDocument) {
+            setSelectedDocument(parsedDocs[0]);
+          }
+        } catch (e) {
+          console.error('Error loading documents:', e);
+        }
+      }
+    } else if (documents.length > 0 && !selectedDocument) {
       setSelectedDocument(documents[0]);
     }
   }, [documents, selectedDocument]);

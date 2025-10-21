@@ -531,3 +531,52 @@ project/
 - **Memory usage**: Monitor with `python3 -c "import psutil; print(psutil.virtual_memory())"`
 - **Response time analysis**: Check evaluation results for avg_response_time metrics
 - **Concurrent issues**: Test with `--concurrent` flag in benchmark_rag.py
+
+## Key Development Patterns
+
+### State Management
+- **Backend**: Global `qa_chain` variable per session for conversation context in `rag/rag_pipeline.py:25`
+- **Frontend**: React hooks for component state, Axios for API calls with error handling
+- **Sessions**: Session-based storage with `backend/session_manager.py` for conversation history
+
+### Error Handling Patterns
+- **Backend**: Comprehensive try/catch blocks with detailed error messages and HTTP status codes
+- **Frontend**: Error boundaries and HTTP error handling with user-friendly messages
+- **RAG Pipeline**: Retry logic with exponential backoff (3 attempts) in `rag/rag_pipeline.py:40`
+
+### File Processing Architecture
+- **Supported formats**: PDF, DOCX, DOC, TXT (max 16MB) via `rag/data_loader.py`
+- **Chunking strategy**: 800 characters with 100-character overlap for better retrieval in `rag/chunk_documents.py`
+- **Embedding generation**: HuggingFace `sentence-transformers/all-MiniLM-L6-v2` with persistent caching
+- **Vector storage**: ChromaDB with persistent storage in `data/chroma_db/`
+
+### API Design Patterns
+- **RESTful endpoints**: `/` (health), `/upload_file`, `/ask_ai` with proper HTTP methods
+- **Rate limiting**: Configurable via environment variables with different limits per endpoint
+- **CORS handling**: Properly configured for development and production environments
+- **Session management**: Cookie-based sessions with configurable timeout
+
+## Important Implementation Details
+
+### Critical Architecture Notes
+- **Global state management**: The `qa_chain` variable is stored globally per session, making the system NOT thread-safe for concurrent uploads on the same session
+- **Dependency order**: Services must start in specific order (Backend → Frontend) with proper health checks
+- **Memory management**: Embedding cache grows with document volume but is manageable up to 10GB
+- **File processing**: All file operations use secure_filename() and validate file types/sizes
+
+### Configuration System
+- **Environment-based config**: Three modes (development/production/testing) with different defaults
+- **Config validation**: Automatic validation on startup with `backend/config.py:ConfigValidator`
+- **Feature flags**: Enable/disable features like hybrid search, query caching, batch processing
+- **Security**: Production mode requires SSL/TLS, API keys, and strict CORS settings
+
+### Data Flow Architecture
+1. **Upload Phase**: File validation → Document parsing → Text chunking → Embedding generation → Vector storage
+2. **Query Phase**: Query reception → Context retrieval → LLM generation → Response formatting
+3. **Session Management**: Conversation history storage → Context maintenance → Session cleanup
+
+### Dependencies & Version Management
+- **Python requirements**: Three-tier requirements files (minimal.txt, working.txt, requirements.txt)
+- **Frontend dependencies**: npm with package-lock.json for reproducible builds
+- **Virtual environment**: Required for all Python development (`source .venv/bin/activate`)
+- **Tested configurations**: `requirements-working.txt` contains verified dependency versions

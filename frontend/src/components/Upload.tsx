@@ -2,6 +2,7 @@ import { useState, FormEvent, useCallback, DragEvent } from "react";
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { DocumentProcessingLoader, UploadProgressIndicator } from "../components/LoadingSpinner";
+import ApiService from "../services/api";
 import type {
   UploadResponse,
   NotificationConfig
@@ -267,49 +268,43 @@ function Upload(): JSX.Element {
     try {
       const allowedTypes = ['.pdf', '.doc', '.docx', '.txt'];
       const isValidType = allowedTypes.some(type => file.name.toLowerCase().endsWith(type));
-      
+
       if (!isValidType) return { success: false, error: 'Invalid file type' };
 
       const maxSize = 16 * 1024 * 1024;
       if (file.size > maxSize) return { success: false, error: 'File too large' };
 
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch("http://127.0.0.1:8081/upload_file", {
-        method: "POST",
-        body: formData,
+      // Use ApiService for upload with progress monitoring
+      const result = await ApiService.uploadAndProcess(file, (progress) => {
+        setUploadProgress(progress.progress);
+        setUploadStage(progress.stage === 'completed' ? 'complete' :
+                     progress.stage === 'error' ? 'error' : 'processing');
       });
 
-      if (!response.ok) {
-        return { success: false, error: `HTTP error! status: ${response.status}` };
-      }
-
-      const data = await response.json();
-      
-      if (data.status === 'success') {
+      if (result.success && result.session_id) {
         // Save to localStorage
         const newDocument = {
-          id: data.session_id || `doc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          id: result.session_id || `doc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           fileName: file.name,
           fileSize: file.size,
           uploadDate: new Date().toISOString(),
           status: 'processed' as const,
-          sessionId: data.session_id,
+          sessionId: result.session_id,
           fileType: file.type || 'application/octet-stream'
         };
-        
+
         const existingDocs = localStorage.getItem('uploadedDocuments');
         const documents = existingDocs ? JSON.parse(existingDocs) : [];
         documents.push(newDocument);
         localStorage.setItem('uploadedDocuments', JSON.stringify(documents));
-        
+
         return { success: true };
       } else {
-        return { success: false, error: data.message || 'Upload failed' };
+        return { success: false, error: result.error || 'Upload failed' };
       }
-    } catch (error) {
-      return { success: false, error: 'Network error' };
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      return { success: false, error: error.message || 'Upload failed' };
     }
   };
 

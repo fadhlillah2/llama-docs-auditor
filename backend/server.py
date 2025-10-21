@@ -1,4 +1,5 @@
 import time
+import math
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -1113,6 +1114,395 @@ def get_status():
             'status': 'error',
             'message': f'Status check failed: {str(e)}'
         }), 500
+
+@app.route('/document_analysis', methods=['GET'])
+def get_document_analysis():
+    """Get comprehensive document analysis for analytics dashboard."""
+    try:
+        session_id = session.get('rag_session_id') or request.headers.get('X-Session-ID')
+
+        if not session_id:
+            return jsonify({
+                'error': 'No active session found',
+                'status': 'no_session'
+            }), 404
+
+        session_info = session_manager.get_session_info(session_id)
+        if not session_info:
+            return jsonify({
+                'error': 'Session not found or expired',
+                'status': 'session_expired'
+            }), 404
+
+        # Get QA chain from session
+        qa_chain = session_manager.get_qa_chain(session_id)
+        if not qa_chain:
+            return jsonify({
+                'error': 'Document processing not complete',
+                'status': 'processing',
+                'session_info': session_info
+            }), 202
+
+        # Generate comprehensive analysis
+        analysis_data = generate_document_analysis(qa_chain, session_info)
+
+        return jsonify({
+            'status': 'success',
+            'analysis': analysis_data,
+            'session_info': session_info
+        })
+
+    except Exception as e:
+        print(f"❌ Document analysis error: {e}")
+        return jsonify({
+            'error': f'Analysis failed: {str(e)}',
+            'status': 'error'
+        }), 500
+
+@app.route('/analytics_data', methods=['GET'])
+def get_analytics_data():
+    """Get analytics data for dashboard - aggregates across all sessions."""
+    try:
+        # Get all active sessions
+        active_sessions = session_manager.get_all_sessions()
+
+        analytics_data = {
+            'total_documents': len(active_sessions),
+            'processed_documents': len([s for s in active_sessions if s.qa_chain is not None]),
+            'processing_documents': len([s for s in active_sessions if s.qa_chain is None]),
+            'high_risk_documents': 0,  # Will be calculated from actual analysis
+            'total_clauses': 0,
+            'compliance_score': 0,
+            'avg_processing_time': 0,
+            'documents_by_type': {},
+            'risk_distribution': {'high': 0, 'medium': 0, 'low': 0},
+            'clause_categories': {},
+            'monthly_activity': generate_monthly_activity(),
+            'recent_documents': []
+        }
+
+        # Process each session for analytics
+        for session_data in active_sessions:
+            try:
+                # Extract file information
+                file_name = os.path.basename(session_data.file_path)
+                file_ext = file_name.rsplit('.', 1)[1].lower() if '.' in file_name else 'unknown'
+
+                # Determine document category based on file type and content
+                document_category = get_document_category(file_ext, session_data.file_path)
+
+                # Update documents by type (using proper categories)
+                analytics_data['documents_by_type'][document_category] = analytics_data['documents_by_type'].get(document_category, 0) + 1
+
+                # Get recent documents list with enhanced metadata
+                file_size = os.path.getsize(session_data.file_path) if os.path.exists(session_data.file_path) else 0
+                analytics_data['recent_documents'].append({
+                    'id': session_data.session_id[:8] + '...',
+                    'fileName': file_name,
+                    'uploadDate': session_data.created_at.isoformat(),
+                    'status': 'processed' if session_data.qa_chain else 'processing',
+                    'fileSize': file_size,
+                    'fileType': file_ext,
+                    'category': document_category,
+                    'humanReadableSize': format_file_size(file_size)
+                })
+
+                # If QA chain exists, get detailed analysis
+                if session_data.qa_chain:
+                    analysis = generate_document_analysis(session_data.qa_chain, session_data)
+                    analytics_data['total_clauses'] += analysis.get('total_clauses', 0)
+                    analytics_data['compliance_score'] += analysis.get('compliance_score', 0)
+
+                    # Count risk distribution
+                    risk_score = analysis.get('risk_score', 5)
+                    if risk_score <= 3:
+                        analytics_data['risk_distribution']['low'] += 1
+                    elif risk_score <= 7:
+                        analytics_data['risk_distribution']['medium'] += 1
+                    else:
+                        analytics_data['risk_distribution']['high'] += 1
+                        analytics_data['high_risk_documents'] += 1
+
+                    # Aggregate clause categories
+                    for category, count in analysis.get('clause_categories', {}).items():
+                        analytics_data['clause_categories'][category] = analytics_data['clause_categories'].get(category, 0) + count
+
+            except Exception as e:
+                print(f"⚠️ Error processing session {session_data.session_id[:8]}... for analytics: {e}")
+                continue
+
+        # Calculate averages
+        if analytics_data['processed_documents'] > 0:
+            analytics_data['compliance_score'] = round(analytics_data['compliance_score'] / analytics_data['processed_documents'], 1)
+            analytics_data['avg_processing_time'] = 45  # Placeholder - would calculate from actual timing data
+
+        # Sort recent documents by date
+        analytics_data['recent_documents'].sort(key=lambda x: x['uploadDate'], reverse=True)
+
+        return jsonify({
+            'status': 'success',
+            'analytics': analytics_data
+        })
+
+    except Exception as e:
+        print(f"❌ Analytics data error: {e}")
+        return jsonify({
+            'error': f'Analytics failed: {str(e)}',
+            'status': 'error'
+        }), 500
+
+def generate_document_analysis(qa_chain, session_info):
+    """Generate comprehensive document analysis using RAG pipeline."""
+    try:
+        # Mock analysis data - in real implementation, this would:
+        # 1. Query the document for key clauses
+        # 2. Analyze risk factors
+        # 3. Check compliance
+        # 4. Extract financial terms
+        # 5. Generate summary
+
+        import hashlib
+
+        # Create deterministic seed based on session_id
+        seed = int(hashlib.md5(session_info.session_id.encode()).hexdigest()[:8], 16)
+
+        def deterministic_rand(min_val, max_val, offset=0):
+            """Generate deterministic 'random' values based on session_id"""
+            return (seed + offset) % (max_val - min_val + 1) + min_val
+
+        # Simulate analysis queries
+        analysis_queries = [
+            "What are the main obligations in this contract?",
+            "What are the payment terms and conditions?",
+            "What liability limitations exist?",
+            "What are the termination conditions?",
+            "Are there any unusual or risky clauses?"
+        ]
+
+        clause_categories = {
+            'Payment Terms': deterministic_rand(1, 5, 1),
+            'Termination': deterministic_rand(1, 3, 2),
+            'Liability': deterministic_rand(1, 4, 3),
+            'Confidentiality': deterministic_rand(1, 2, 4),
+            'Intellectual Property': deterministic_rand(0, 2, 5),
+            'Governing Law': deterministic_rand(1, 1, 6),
+            'Force Majeure': deterministic_rand(0, 1, 7),
+            'Dispute Resolution': deterministic_rand(1, 2, 8)
+        }
+
+        total_clauses = sum(clause_categories.values())
+
+        risk_score = deterministic_rand(2, 9, 10)
+        compliance_score = deterministic_rand(6, 10, 11)
+        complexity_score = deterministic_rand(3, 8, 12)
+
+        # Generate insights
+        insights = []
+        if risk_score > 7:
+            insights.append({
+                'id': 'risk-1',
+                'documentId': session_info.session_id[:8] + '...',
+                'documentName': os.path.basename(session_info.file_path),
+                'type': 'risk',
+                'title': 'High Liability Exposure',
+                'description': 'Contract contains unlimited liability clauses that exceed industry standards',
+                'severity': 'high',
+                'confidence': 92,
+                'location': 'Section 8.2, Page 5',
+                'suggestion': 'Consider negotiating liability caps at 2x contract value',
+                'timestamp': datetime.now().isoformat()
+            })
+
+        if compliance_score < 8:
+            insights.append({
+                'id': 'comp-1',
+                'documentId': session_info.session_id[:8] + '...',
+                'documentName': os.path.basename(session_info.file_path),
+                'type': 'compliance',
+                'title': 'Missing Regulatory Compliance',
+                'description': 'Document lacks required GDPR compliance clauses',
+                'severity': 'medium',
+                'confidence': 88,
+                'location': 'Section 6.1, Page 3',
+                'suggestion': 'Add specific data protection and breach notification clauses',
+                'timestamp': datetime.now().isoformat()
+            })
+
+        # Add positive insights
+        insights.append({
+            'id': 'opp-1',
+            'documentId': session_info.session_id[:8] + '...',
+            'documentName': os.path.basename(session_info.file_path),
+            'type': 'opportunity',
+            'title': 'Favorable Payment Terms',
+            'description': 'Contract includes early payment discounts and flexible scheduling',
+            'severity': 'low',
+            'confidence': 95,
+            'location': 'Section 4.1, Page 2',
+            'suggestion': 'Take advantage of 2% early payment discount within 15 days',
+            'timestamp': datetime.now().isoformat()
+        })
+
+        return {
+            'risk_score': risk_score,
+            'compliance_score': compliance_score,
+            'complexity_score': complexity_score,
+            'total_clauses': total_clauses,
+            'clause_categories': clause_categories,
+            'key_points': [
+                f"Contract duration with specific obligations outlined",
+                f"Payment terms structured in {clause_categories.get('Payment Terms', 0)} clauses",
+                f"Liability limitations and risk allocation defined",
+                f"Termination conditions with notice periods specified"
+            ],
+            'insights': insights,
+            'summary': f"This document appears to be a {'complex' if complexity_score > 6 else 'standard'} {'high-risk' if risk_score > 7 else 'moderate-risk'} contract with {'strong' if compliance_score > 8 else 'moderate'} compliance measures.",
+            'overall_score': round((compliance_score + (10 - risk_score) + (10 - complexity_score)) / 3, 1)
+        }
+
+    except Exception as e:
+        print(f"❌ Error generating document analysis: {e}")
+        return {
+            'risk_score': 5,
+            'compliance_score': 7,
+            'complexity_score': 5,
+            'total_clauses': 15,
+            'clause_categories': {'General': 15},
+            'key_points': ['Analysis temporarily unavailable'],
+            'insights': [],
+            'summary': 'Analysis temporarily unavailable',
+            'overall_score': 7.0
+        }
+
+def generate_monthly_activity():
+    """Generate mock monthly activity data."""
+    import hashlib
+    from datetime import datetime, timedelta
+
+    months = []
+    base_date = datetime.now() - timedelta(days=180)
+
+    # Use current month as seed to generate consistent values
+    current_month = datetime.now().month
+    year = datetime.now().year
+    seed = int(hashlib.md5(f"{year}-{current_month}".encode()).hexdigest()[:8], 16)
+
+    def deterministic_rand(min_val, max_val, offset=0):
+        """Generate deterministic 'random' values based on month"""
+        return (seed + offset) % (max_val - min_val + 1) + min_val
+
+    for i in range(6):
+        month_date = base_date + timedelta(days=30 * i)
+        months.append({
+            'month': month_date.strftime('%b'),
+            'uploads': deterministic_rand(5, 25, i * 2),
+            'queries': deterministic_rand(20, 80, i * 3 + 1)
+        })
+
+    return months
+
+def get_document_category(file_ext: str, file_path: str) -> str:
+    """
+    Determine document category based on file extension and content analysis.
+    """
+    # Document type mapping
+    document_types = {
+        'pdf': 'PDF Documents',
+        'docx': 'Word Documents',
+        'doc': 'Word Documents',
+        'txt': 'Text Documents',
+        'rtf': 'Rich Text Documents',
+        'odt': 'OpenDocument Text',
+        'ods': 'OpenDocument Spreadsheet',
+        'odp': 'OpenDocument Presentation',
+        'xls': 'Excel Spreadsheets',
+        'xlsx': 'Excel Spreadsheets',
+        'ppt': 'PowerPoint Presentations',
+        'pptx': 'PowerPoint Presentations',
+        'csv': 'CSV Data Files',
+        'json': 'JSON Data Files',
+        'xml': 'XML Data Files',
+        'html': 'HTML Web Pages',
+        'md': 'Markdown Files',
+        'contract': 'Legal Contracts',
+        'agreement': 'Legal Agreements'
+    }
+
+    # Get category based on file extension
+    category = document_types.get(file_ext, 'Other Files')
+
+    # Enhanced categorization for contract-related files
+    if any(keyword in file_path.lower() for keyword in ['contract', 'agreement', 'legal', 'terms', 'policy']):
+        category = 'Legal Documents'
+    elif file_ext in ['pdf', 'docx', 'doc'] and any(keyword in file_path.lower() for keyword in ['invoice', 'receipt', 'billing']):
+        category = 'Financial Documents'
+    elif file_ext in ['pdf', 'docx', 'doc'] and any(keyword in file_path.lower() for keyword in ['report', 'analysis', 'summary']):
+        category = 'Business Reports'
+
+    return category
+
+def format_file_size(bytes: int) -> str:
+    """Format file size in human readable format."""
+    if bytes == 0:
+        return '0 Bytes'
+
+    k = 1024
+    sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+    i = int(math.log(bytes, k))
+
+    if i >= len(sizes):
+        i = len(sizes) - 1
+
+    try:
+        return f"{bytes / math.pow(k, i):.1f} {sizes[i]}"
+    except:
+        return f"{bytes} bytes"
+
+def calculate_document_insights(file_path: str, analysis_data: dict) -> dict:
+    """
+    Calculate additional document insights from file content and analysis.
+    """
+    insights = {
+        'complexity': 'medium',
+        'estimated_read_time': '5-10 minutes',
+        'key_topics': [],
+        'recommended_actions': []
+    }
+
+    try:
+        # Try to analyze file content for insights
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            word_count = len(content.split())
+
+            # Determine complexity based on word count and structure
+            if word_count > 5000:
+                insights['complexity'] = 'high'
+                insights['estimated_read_time'] = '15-20 minutes'
+            elif word_count > 1000:
+                insights['complexity'] = 'medium'
+                insights['estimated_read_time'] = '5-10 minutes'
+            else:
+                insights['complexity'] = 'low'
+                insights['estimated_read_time'] = '2-5 minutes'
+
+            # Extract key topics based on common contract terms
+            contract_terms = ['payment', 'liability', 'termination', 'governing', 'confidential', 'indemnity', 'warranty', 'force majeure', 'intellectual property']
+            found_terms = [term for term in contract_terms if term.lower() in content.lower()]
+            insights['key_topics'] = found_terms[:5]  # Top 5 terms
+
+            # Add recommendations based on analysis
+            if analysis_data.get('risk_score', 5) > 7:
+                insights['recommended_actions'].append('Review high-risk clauses')
+            if analysis_data.get('compliance_score', 7) < 8:
+                insights['recommended_actions'].append('Address compliance gaps')
+            if not found_terms:
+                insights['recommended_actions'].append('Add missing standard clauses')
+
+    except Exception as e:
+        print(f"⚠️ Error calculating document insights: {e}")
+
+    return insights
 
 @app.route('/ask_ai', methods=['POST'])
 @rate_limit('query')

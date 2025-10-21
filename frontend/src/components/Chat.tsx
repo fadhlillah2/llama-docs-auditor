@@ -4,10 +4,11 @@ import Svg from "../components/Svg";
 import LoadingSpinner, { ChatLoadingIndicator } from "../components/LoadingSpinner";
 import { ChatErrorMessage, ConnectionErrorMessage } from "../components/ErrorDisplay";
 import { ChatTypingIndicator, EnhancedChatTypingIndicator } from "../components/TypingIndicator";
-import type { 
-  ChatMessage, 
-  ChatApiRequest, 
-  ChatApiResponse 
+import ApiService from "../services/api";
+import type {
+  ChatMessage,
+  ChatApiRequest,
+  ChatApiResponse
 } from "../types/api";
 
 interface TechStackItem {
@@ -242,23 +243,10 @@ function Chat(): JSX.Element {
     const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
 
     try {
-      const response = await fetch("http://127.0.0.1:8081/ask_ai", {
-        method: "POST",
-        body: JSON.stringify(requestData),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-      });
+      // Use ApiService for RAG query
+      const response = await ApiService.askQuestion(prompt, JSON.stringify(chatMessages));
+      const resData = response.data;
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const resData: ChatApiResponse = await response.json();
-      
       // Finalize loading state
       setLoadingStage('finalizing');
       setLoadingProgress(100);
@@ -272,7 +260,7 @@ function Chat(): JSX.Element {
       if (!currentSessionId && resData.session_id) {
         setCurrentSessionId(resData.session_id);
       }
-      
+
       const finalMessages: ChatMessage[] = [
         ...chatMessages,
         {
@@ -288,30 +276,29 @@ function Chat(): JSX.Element {
           id: `${messageId}-ai-response`
         },
       ];
-      
+
       setChatMessages(finalMessages);
       chatScrollUp();
 
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("Chat API Error:", err);
-      
-      const error = err as Error;
-      const errorMessage = error.name === 'AbortError'
-        ? "Request timed out. The Groq llama-3.3-70b-versatile model is processing (this can take 10-30 seconds). Please wait a moment and try again."
-        : `Error: ${error.message || 'Failed to get response'}`;
-      
+
+      const errorMessage = err.response?.data?.error ||
+        err.message ||
+        'Failed to get response. Please try again.';
+
       // Check if it's a connection error
-      const isConnectionError = error.message?.includes('fetch') || 
-                               error.message?.includes('network') || 
-                               error.message?.includes('Connection') ||
-                               error.name === 'TypeError';
-      
+      const isConnectionError = err.message?.includes('fetch') ||
+                               err.message?.includes('network') ||
+                               err.message?.includes('Connection') ||
+                               err.code === 'ECONNREFUSED';
+
       if (isConnectionError) {
         setIsConnected(false);
       }
-      
+
       setError(errorMessage);
-      
+
       // Still add user message to chat history
       const errorMessages: ChatMessage[] = [
         ...chatMessages,
@@ -322,7 +309,7 @@ function Chat(): JSX.Element {
           id: `${messageId}-user-error`
         }
       ];
-      
+
       setChatMessages(errorMessages);
       chatScrollUp();
     } finally {

@@ -228,6 +228,16 @@ class SessionManager:
             # Sort by creation time (most recent first)
             active_ids.sort(key=lambda sid: self.sessions[sid].created_at, reverse=True)
             return active_ids
+
+    def get_all_sessions(self) -> list:
+        """Get all session data (including inactive for analytics)."""
+        with self.lock:
+            all_sessions = []
+            for session_id, session in self.sessions.items():
+                all_sessions.append(session)
+            # Sort by creation time (most recent first)
+            all_sessions.sort(key=lambda s: s.created_at, reverse=True)
+            return all_sessions
     
     def cleanup_session(self, session_id: str) -> bool:
         """Manually cleanup a specific session."""
