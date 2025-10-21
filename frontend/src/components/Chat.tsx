@@ -4,6 +4,7 @@ import Svg from "../components/Svg";
 import LoadingSpinner, { ChatLoadingIndicator } from "../components/LoadingSpinner";
 import { ChatErrorMessage, ConnectionErrorMessage } from "../components/ErrorDisplay";
 import { ChatTypingIndicator, EnhancedChatTypingIndicator } from "../components/TypingIndicator";
+import MobileChat from "./MobileChat";
 import ApiService from "../services/api";
 import type {
   ChatMessage,
@@ -35,6 +36,9 @@ function Chat(): JSX.Element {
   const [loadingStage, setLoadingStage] = useState<'analyzing' | 'retrieving' | 'generating' | 'finalizing'>('analyzing');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
+
+  // Mobile chat state
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
 
   // Load conversation history and documents on component mount
   useEffect(() => {
@@ -727,9 +731,23 @@ function Chat(): JSX.Element {
           </button>
         </div>
         
+        {/* Mobile Chat Button - Only visible on mobile */}
+        <button
+          onClick={() => setIsMobileChatOpen(true)}
+          className="lg:hidden fixed bottom-4 right-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 transform hover:scale-105 z-40"
+          title="Open Mobile Chat"
+          aria-label="Open mobile chat"
+          type="button"
+        >
+          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+          </svg>
+        </button>
+
+        {/* Desktop Chat Button - Only visible on desktop */}
         <button
           onClick={openChart}
-          className="blantershow-chat"
+          className="hidden lg:flex blantershow-chat"
           title="Show Chat"
           aria-label="Open chat"
           type="button"
@@ -738,6 +756,34 @@ function Chat(): JSX.Element {
           Chat with your legal document
         </button>
       </div>
+
+      {/* Mobile Chat Component */}
+      <MobileChat
+        isOpen={isMobileChatOpen}
+        onClose={() => setIsMobileChatOpen(false)}
+        onSendMessage={(message) => {
+          // Set the message in input and trigger askAI
+          const input = document.getElementById("chat-input") as HTMLInputElement;
+          if (input) {
+            input.value = message;
+            askAI();
+          }
+          setIsMobileChatOpen(false);
+        }}
+        isLoading={isLoading}
+        placeholder={
+          selectedFiles && selectedFiles.length > 0
+            ? `Ask about your ${selectedFiles.length} document${selectedFiles.length > 1 ? 's' : ''}...`
+            : "What can I help you with? Try: 'What are the payment terms?'"
+        }
+      >
+        {/* Pass chat messages to mobile component */}
+        <div className="space-y-4">
+          {chatMessages.map((message, index) => (
+            <Message key={index} message={message} />
+          ))}
+        </div>
+      </MobileChat>
     </div>
   );
 }

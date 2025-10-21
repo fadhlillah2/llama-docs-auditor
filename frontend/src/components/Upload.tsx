@@ -2,6 +2,7 @@ import { useState, FormEvent, useCallback, DragEvent } from "react";
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { DocumentProcessingLoader, UploadProgressIndicator } from "../components/LoadingSpinner";
+import EnhancedProgressIndicator from "../components/EnhancedProgressIndicator";
 import ApiService from "../services/api";
 import type {
   UploadResponse,
@@ -40,6 +41,10 @@ function Upload(): JSX.Element {
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [documentPreviews, setDocumentPreviews] = useState<DocumentPreview[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+
+  // Enhanced progress states
+  const [showEnhancedProgress, setShowEnhancedProgress] = useState<boolean>(false);
+  const [currentProcessingFile, setCurrentProcessingFile] = useState<File | null>(null);
   const [processingOptions, setProcessingOptions] = useState<ProcessingOptions>({
     extractClauses: true,
     identifyRisks: true,
@@ -366,6 +371,10 @@ function Upload(): JSX.Element {
       setUploadStage('error');
       return;
     }
+
+    // Show enhanced progress indicator
+    setCurrentProcessingFile(selectedFile);
+    setShowEnhancedProgress(true);
 
     // Start upload progress simulation
     setUploadProgress(10);
@@ -744,6 +753,33 @@ function Upload(): JSX.Element {
           </form>
         </div>
       </section>
+
+      {/* Enhanced Progress Indicator */}
+      <EnhancedProgressIndicator
+        isActive={showEnhancedProgress}
+        fileName={currentProcessingFile?.name}
+        fileType={currentProcessingFile?.type.split('/')[1].toUpperCase() || 'FILE'}
+        fileSize={currentProcessingFile ? `${(currentProcessingFile.size / 1024 / 1024).toFixed(2)} MB` : undefined}
+        onComplete={() => {
+          setShowEnhancedProgress(false);
+          setCurrentProcessingFile(null);
+        }}
+        onCancel={() => {
+          setShowEnhancedProgress(false);
+          setCurrentProcessingFile(null);
+          setIsUploading(false);
+        }}
+        onError={(error) => {
+          setShowEnhancedProgress(false);
+          setCurrentProcessingFile(null);
+          showSwalNotification({
+            icon: 'error',
+            title: 'Processing Failed',
+            text: error,
+            confirmButtonColor: '#dc2626'
+          });
+        }}
+      />
     </div>
   );
 }
