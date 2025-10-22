@@ -31,6 +31,8 @@ const MobileChat: React.FC<MobileChatProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -40,6 +42,58 @@ const MobileChat: React.FC<MobileChatProps> = ({
       setTimeout(() => inputRef.current?.focus(), 300);
     }
   }, [isOpen]);
+
+  // Check voice recognition support
+  useEffect(() => {
+    const checkVoiceSupport = () => {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      setVoiceSupported(!!SpeechRecognition);
+    };
+    checkVoiceSupport();
+  }, []);
+
+  // Voice recognition handlers
+  const startVoiceRecognition = () => {
+    if (!voiceSupported) {
+      alert('Voice recognition is not supported in your browser. Try Chrome or Edge.');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const current = event.resultIndex;
+      const transcript = event.results[current][0].transcript;
+      setMessage(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      if (event.error === 'not-allowed') {
+        alert('Microphone access was denied. Please allow microphone access to use voice input.');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const stopVoiceRecognition = () => {
+    setIsListening(false);
+  };
 
   // Handle swipe gestures
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -236,18 +290,30 @@ const MobileChat: React.FC<MobileChatProps> = ({
                 </div>
 
                 <div className="flex space-x-2">
+                  {/* Voice Input Button */}
+                  <button
+                    onClick={isListening ? stopVoiceRecognition : startVoiceRecognition}
+                    className={`
+                      p-3 rounded-full transition-all duration-200
+                      ${isListening
+                        ? 'bg-red-600 hover:bg-red-700 animate-pulse'
+                        : voiceSupported
+                          ? 'bg-gray-700 hover:bg-gray-600'
+                          : 'bg-gray-800 opacity-50 cursor-not-allowed'
+                      }
+                    `}
+                    title={voiceSupported ? (isListening ? 'Stop recording' : 'Start voice input') : 'Voice not supported'}
+                  >
+                    <MicrophoneIcon className="w-5 h-5" />
+                  </button>
+
                   <button
                     className="p-3 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors duration-200"
                   >
                     <CameraIcon className="w-5 h-5" />
                   </button>
 
-                  <button
-                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors duration-200"
-                  >
-                    <MicrophoneIcon className="w-5 h-5" />
-                  </button>
-
+                  
                   <button
                     onClick={handleSendMessage}
                     disabled={!message.trim() || isLoading}

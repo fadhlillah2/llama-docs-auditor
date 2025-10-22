@@ -376,7 +376,7 @@ cd frontend && npm run fix-all
 - **Embeddings**: HuggingFace sentence-transformers (local, fast)
 - **Concurrent sessions**: 5 sessions max per IP (configurable)
 - **File processing**: PDF, DOCX, TXT with multiple parsing libraries
-- **Rate limits**: 30 queries/min per IP (configurable via environment)
+- **Rate limiting**: 30 queries/min per IP (configurable via environment)
 
 ### Scaling Considerations
 - **Global state**: `qa_chain` stored per session (not thread-safe for concurrent uploads)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UploadProgressIndicator } from './LoadingSpinner';
 import { ChatErrorMessage } from './ErrorDisplay';
+import QuickActionsMenu from './QuickActionsMenu';
 
 interface UploadedDocument {
   id: string;
@@ -175,22 +176,45 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
+  // Quick action handlers
+  const handleQuickPreview = (document: UploadedDocument) => {
+    // Show first 500 characters preview
+    alert(`Preview: ${document.fileName}\n\n(First 500 characters would be shown here)`);
+  };
+
+  const handleGenerateSummary = (document: UploadedDocument) => {
+    // Trigger AI summary generation
+    alert(`Generating summary for: ${document.fileName}\n\n(This would trigger AI analysis)`);
+  };
+
+  const handleShareDocument = (document: UploadedDocument) => {
+    // Create shareable link
+    const shareUrl = `${window.location.origin}?doc=${document.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert(`Share link copied to clipboard!\n\n${shareUrl}`);
+  };
+
+  const handleExportAnalysis = (document: UploadedDocument) => {
+    // Export document analysis
+    alert(`Exporting analysis for: ${document.fileName}\n\n(This would download PDF/JSON report)`);
+  };
+
   const handleReprocess = async (documentId: string) => {
     try {
       setIsLoading(true);
-      
+
       // Update document status to processing
-      const updatedDocs = documents.map(doc => 
+      const updatedDocs = documents.map(doc =>
         doc.id === documentId ? { ...doc, status: 'processing' as const } : doc
       );
       setDocuments(updatedDocs);
-      
+
       // In a real app, this would trigger reprocessing via API
       // await reprocessDocument(documentId);
-      
+
       // Simulate processing time
       setTimeout(() => {
-        const finalDocs = documents.map(doc => 
+        const finalDocs = documents.map(doc =>
           doc.id === documentId ? { ...doc, status: 'processed' as const } : doc
         );
         setDocuments(finalDocs);
@@ -245,7 +269,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3 flex-1">
                     {getFileIcon(document.fileType)}
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
                         <h4 className="text-sm font-medium text-gray-900 truncate">
@@ -253,7 +277,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
                         </h4>
                         {getStatusBadge(document.status)}
                       </div>
-                      
+
                       <div className="text-xs text-gray-500 space-y-1">
                         <p>Size: {formatFileSize(document.fileSize)}</p>
                         <p>Uploaded: {formatDate(document.uploadDate)}</p>
@@ -263,6 +287,16 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Quick Actions Menu */}
+                  <QuickActionsMenu
+                    document={document}
+                    onPreview={handleQuickPreview}
+                    onSummary={handleGenerateSummary}
+                    onShare={handleShareDocument}
+                    onExport={handleExportAnalysis}
+                    onDelete={handleDocumentDelete}
+                  />
 
                   <div className="flex items-center space-x-2 ml-4">
                     <button

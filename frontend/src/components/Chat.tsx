@@ -331,8 +331,8 @@ function Chat(): JSX.Element {
     }
   };
 
-  // Enhanced contextual suggestions
-  const contextualSuggestions = [
+  // Enhanced contextual suggestions with document awareness
+  const [contextualSuggestions, setContextualSuggestions] = useState([
     "What are the payment terms?",
     "When can this contract be terminated?",
     "What are the obligations of each party?",
@@ -341,7 +341,75 @@ function Chat(): JSX.Element {
     "Is there a confidentiality clause?",
     "What are the dispute resolution procedures?",
     "Are there any non-compete restrictions?"
-  ];
+  ]);
+
+  // Smart suggestion generation based on document content
+  const generateSmartSuggestions = useCallback(() => {
+    try {
+      const documents = localStorage.getItem('uploadedDocuments');
+      if (!documents) return;
+
+      const parsedDocs = JSON.parse(documents);
+      const docNames = parsedDocs.map((doc: any) => doc.fileName.toLowerCase());
+
+      let smartSuggestions: string[] = [];
+
+      // Document type-specific suggestions
+      if (docNames.some((name: string) => name.includes('nda') || name.includes('confidential'))) {
+        smartSuggestions.push(
+          "What information is considered confidential?",
+          "How long does confidentiality last?",
+          "What are the penalties for breach?"
+        );
+      }
+
+      if (docNames.some((name: string) => name.includes('employment') || name.includes('work'))) {
+        smartSuggestions.push(
+          "What is the salary and compensation structure?",
+          "What are the working hours and leave policies?",
+          "What grounds exist for termination?"
+        );
+      }
+
+      if (docNames.some((name: string) => name.includes('sales') || name.includes('service'))) {
+        smartSuggestions.push(
+          "What products or services are covered?",
+          "What are the delivery timelines?",
+          "What happens if deadlines are missed?"
+        );
+      }
+
+      // Add conversation-aware suggestions
+      if (chatMessages.length > 3) {
+        const lastUserMessage = chatMessages.slice(-2).find(msg => msg.position === "right_bubble");
+        if (lastUserMessage) {
+          const question = lastUserMessage.message.toLowerCase();
+          if (question.includes('payment')) {
+            smartSuggestions.push("Are there late payment penalties?");
+            smartSuggestions.push("What payment methods are accepted?");
+          } else if (question.includes('terminate')) {
+            smartSuggestions.push("What happens after termination?");
+            smartSuggestions.push("Are there any termination fees?");
+          } else if (question.includes('liable')) {
+            smartSuggestions.push("What insurance is required?");
+            smartSuggestions.push("How are disputes handled?");
+          }
+        }
+      }
+
+      // Update suggestions if we have smart ones
+      if (smartSuggestions.length > 0) {
+        setContextualSuggestions(prev => [...new Set([...smartSuggestions, ...prev.slice(0, 5)])]);
+      }
+    } catch (error) {
+      console.error('Error generating smart suggestions:', error);
+    }
+  }, [chatMessages]);
+
+  // Generate smart suggestions when documents or messages change
+  useEffect(() => {
+    generateSmartSuggestions();
+  }, [generateSmartSuggestions]);
 
   const contractCategories = [
     { icon: "💰", category: "Payment & Compensation", questions: ["What are the payment terms?", "How is compensation calculated?", "When are payments due?"] },

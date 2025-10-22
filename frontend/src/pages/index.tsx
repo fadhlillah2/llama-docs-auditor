@@ -5,10 +5,57 @@ import DocumentManager from "../components/DocumentManager";
 import DocumentAnalyticsDashboard from "../components/DocumentAnalyticsDashboard";
 import DocumentInsights from "../components/DocumentInsights";
 import OnboardingTour from "../components/OnboardingTour";
+import useKeyboardShortcuts from "../hooks/useKeyboardShortcuts";
+import KeyboardShortcutsHint from "../components/KeyboardShortcutsHint";
 
 const Home: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'upload' | 'documents' | 'analytics' | 'insights'>('upload');
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Keyboard shortcut handlers
+  const shortcutHandlers = {
+    onSearch: () => {
+      const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+      searchInput?.focus();
+    },
+    onNewChat: () => {
+      // Clear chat history and start new conversation
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('conversationHistory');
+        window.location.reload();
+      }
+    },
+    onSave: () => {
+      // Export current analysis
+      const documents = localStorage.getItem('uploadedDocuments');
+      if (documents) {
+        const blob = new Blob([documents], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `contract-analysis-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    },
+    onToggleSuggestions: () => {
+      // Toggle chat suggestions visibility
+      const suggestionsButton = document.querySelector('[data-testid="toggle-suggestions"]') as HTMLButtonElement;
+      suggestionsButton?.click();
+    },
+    onUpload: () => {
+      setActiveTab('upload');
+      // Trigger file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fileInput?.click();
+    },
+    onHelp: () => {
+      setShowOnboarding(true);
+    }
+  };
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts(shortcutHandlers);
 
   // Check if first-time user
   useEffect(() => {
@@ -83,6 +130,9 @@ const Home: React.FC = () => {
           onComplete={() => setShowOnboarding(false)}
           onSkip={() => setShowOnboarding(false)}
         />
+
+        {/* Keyboard Shortcuts Hint */}
+        <KeyboardShortcutsHint />
 
       </div>
   )

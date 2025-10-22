@@ -41,7 +41,7 @@ const EnhancedProgressIndicator: React.FC<EnhancedProgressIndicatorProps> = ({
     {
       id: 'upload',
       name: 'Upload Document',
-      description: 'Securingly uploading your file',
+      description: 'Securingly uploading your file to encrypted storage',
       icon: <CloudArrowUpIcon className="w-5 h-5" />,
       estimatedTime: '2-5 seconds',
       status: 'pending',
@@ -50,25 +50,43 @@ const EnhancedProgressIndicator: React.FC<EnhancedProgressIndicatorProps> = ({
     {
       id: 'extract',
       name: 'Extract Content',
-      description: 'Reading and parsing document content',
+      description: 'Parsing text and analyzing document structure',
       icon: <DocumentTextIcon className="w-5 h-5" />,
-      estimatedTime: '5-10 seconds',
+      estimatedTime: '3-8 seconds',
       status: 'pending',
       progress: 0
     },
     {
-      id: 'process',
-      name: 'Process with AI',
-      description: 'Analyzing with advanced language models',
+      id: 'chunk',
+      name: 'Smart Chunking',
+      description: 'Breaking document into intelligent segments for analysis',
       icon: <CpuChipIcon className="w-5 h-5" />,
-      estimatedTime: '10-20 seconds',
+      estimatedTime: '2-5 seconds',
+      status: 'pending',
+      progress: 0
+    },
+    {
+      id: 'embed',
+      name: 'Generate Embeddings',
+      description: 'Creating AI-powered understanding of document content',
+      icon: <CpuChipIcon className="w-5 h-5" />,
+      estimatedTime: '5-12 seconds',
+      status: 'pending',
+      progress: 0
+    },
+    {
+      id: 'index',
+      name: 'Vector Database',
+      description: 'Indexing content for instant semantic search',
+      icon: <CpuChipIcon className="w-5 h-5" />,
+      estimatedTime: '3-7 seconds',
       status: 'pending',
       progress: 0
     },
     {
       id: 'ready',
       name: 'Ready for Chat',
-      description: 'Document is ready for questioning',
+      description: 'Document is ready - Start asking questions!',
       icon: <CheckCircleIcon className="w-5 h-5" />,
       estimatedTime: 'Completed',
       status: 'pending',
@@ -108,7 +126,15 @@ const EnhancedProgressIndicator: React.FC<EnhancedProgressIndicatorProps> = ({
 
         if (currentIdx !== -1) {
           const currentStage = newStages[currentIdx];
-          const increment = Math.random() * 15 + 5; // 5-20% increment
+          // Smoother, more realistic progress increments
+          let increment;
+          if (currentStage.id === 'extract' || currentStage.id === 'chunk') {
+            increment = Math.random() * 20 + 10; // 10-30% for faster stages
+          } else if (currentStage.id === 'embed' || currentStage.id === 'index') {
+            increment = Math.random() * 8 + 3; // 3-11% for slower AI stages
+          } else {
+            increment = Math.random() * 15 + 8; // 8-23% default
+          }
           currentStage.progress = Math.min(currentStage.progress + increment, 100);
 
           if (currentStage.progress >= 100) {
