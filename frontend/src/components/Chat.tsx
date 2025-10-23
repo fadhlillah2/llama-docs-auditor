@@ -21,7 +21,7 @@ function Chat(): JSX.Element {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       position: "left_bubble",
-      message: "Ask me any question about your document?",
+      message: "🤖 **Welcome to Legal Expert AI - High-Precision Contract Advisor RAG**\n\nI'm your specialized AI assistant powered by advanced Retrieval-Augmented Generation technology. I can help you analyze, understand, and extract insights from legal contracts with high precision.\n\n**How I can help:**\n• 📄 Analyze contract terms and clauses\n• 🔍 Explain complex legal language in simple terms\n• ⚖️ Identify potential risks and obligations\n• 💡 Provide insights on payment terms, termination clauses, and more\n• 📊 Extract key information and summarize contract details\n\nPlease upload a contract document first, then ask me any questions about it. I support PDF, DOCX, DOC, and TXT files.\n\nWhat would you like to know about your contract?",
       timestamp: new Date().toISOString(),
       id: "welcome-message"
     },
@@ -39,6 +39,10 @@ function Chat(): JSX.Element {
 
   // Mobile chat state
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+
+  // Document state
+  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
+  const [inputText, setInputText] = useState('');
 
   // Load conversation history and documents on component mount
   useEffect(() => {
@@ -422,7 +426,6 @@ function Chat(): JSX.Element {
 
   const [suggestionsVisible, setSuggestionsVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<{ id: string; fileName: string }[]>([]);
 
   const handleSuggestionClick = (suggestion: string) => {
     const input = document.getElementById("chat-input") as HTMLInputElement;

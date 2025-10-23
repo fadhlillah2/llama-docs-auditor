@@ -55,9 +55,10 @@ High-Precision Contract Advisor RAG is an AI-powered contract analysis system us
 
 **Frontend (Next.js + React)**
 - `frontend/src/pages/index.tsx` - Main layout with Upload and Chat components
-- 22 React components (TypeScript, strict mode): DocumentManager, MarkdownRenderer, etc.
-- Tailwind CSS styling with Ionic React (v7.8.0)
-- Axios HTTP client for API calls with proper error handling
+- 30+ React components (TypeScript, strict mode): DocumentManager, Chat, MobileChat, EnhancedErrorDisplay, ContextualHelpSystem, KeyboardShortcutsHint, QuickActionsMenu, OnboardingTour, DocumentAnalyticsDashboard, etc.
+- Advanced features: Mobile-responsive chat, Keyboard shortcuts (Ctrl+K, Ctrl+/), Contextual help system, Onboarding tours, Document analytics, Enhanced error handling
+- Tailwind CSS styling with Ionic React (v7.8.0) and Framer Motion animations
+- Axios HTTP client for API calls with comprehensive error handling
 
 ### Data Flow
 ```
@@ -347,6 +348,33 @@ cd frontend && npm run check-all
 # Fix all formatting issues
 cd frontend && npm run fix-all
 ```
+
+## User Interface Features
+
+### Keyboard Shortcuts
+- **Ctrl+K**: Open Quick Actions Menu
+- **Ctrl+/**: Show Contextual Help & Keyboard Shortcuts
+- **Escape**: Close modals, dropdowns, and overlays
+- **Enter**: Submit forms and chat messages
+- **Tab/Shift+Tab**: Navigate between interactive elements
+
+### Mobile Features
+- **Responsive Design**: Mobile-optimized chat interface
+- **Touch Gestures**: Swipe navigation for mobile chat
+- **Mobile Chat Component**: Dedicated mobile chat experience
+- **Progressive Enhancement**: Core functionality works on all devices
+
+### Help & Onboarding
+- **Contextual Help System**: Context-aware help widgets
+- **Onboarding Tours**: Guided tours for first-time users
+- **Smart Tooltips**: Helpful hints for complex features
+- **Error Recovery**: User-friendly error messages with recovery options
+
+### Document Analytics
+- **Document Insights**: Automatic document analysis and summaries
+- **Analytics Dashboard**: Usage statistics and document metrics
+- **Performance Monitoring**: Query response times and system health
+- **Enhanced Error Display**: Detailed error information with debugging help
 
 ## Configuration Management
 

@@ -16,9 +16,12 @@ Then open: **http://localhost:3000**
 
 ## 📋 Requirements
 
-- **Python 3.8+** 
+- **Python 3.8+**
 - **Node.js 18+**
-- **Ollama** - Install from [ollama.ai](https://ollama.ai)
+- **Groq API Key** - Get from https://console.groq.com/keys (REQUIRED)
+  - Add to .env file: `GROQ_API_KEY=gsk_your-actual-key`
+  - This is the primary LLM provider - Ollama is deprecated
+- **Ollama** (deprecated, optional fallback only) - Install from [ollama.ai](https://ollama.ai)
   - macOS: `brew install ollama`
   - Linux: `curl -fsSL https://ollama.ai/install.sh | sh`
 
@@ -28,7 +31,8 @@ Then open: **http://localhost:3000**
 - 🤖 **AI Chat**: Ask questions about your contracts
 - 🔍 **RAG Technology**: Retrieves relevant context before answering
 - 💾 **Session Management**: Maintains conversation context
-- 🚀 **Local AI**: Runs entirely on your machine (no API keys!)
+- 🚀 **Fast AI**: Powered by Groq cloud inference (fast, high-quality responses)
+- 🔄 **Fallback**: Local Ollama support when internet is unavailable (deprecated)
 
 ## 🎯 How It Works
 
@@ -39,15 +43,15 @@ Then open: **http://localhost:3000**
 
 ## ⏰ Performance Notes
 
-- **First AI response**: Takes 1-2 minutes (model loading)
-- **Subsequent responses**: Much faster (~10-30 seconds)
-- **Models used**: llama3.2:3b-instruct-q4_0 (main), nomic-embed-text:latest (embeddings)
+- **First AI response**: 10-30 seconds (Groq cloud inference, API initialization)
+- **Subsequent responses**: 5-15 seconds (cached embeddings, established session)
+- **Models used**: Groq llama-3.3-70b-versatile (primary), HuggingFace embeddings (local)
 
 ## 🛠️ What's Included
 
 - **Frontend**: Next.js with TypeScript and Tailwind CSS
 - **Backend**: Flask API with LangChain RAG pipeline
-- **AI Models**: Ollama with local LLM models
+- **AI Models**: Groq cloud inference (primary) with Ollama fallback (deprecated)
 - **Document Processing**: PDF parsing and text chunking
 - **Vector Search**: In-memory retrieval system
 
@@ -61,7 +65,10 @@ Then open: **http://localhost:3000**
 
 **Services won't start?**
 ```bash
-# Check if Ollama is installed
+# Check if Groq API key is set
+echo $GROQ_API_KEY
+
+# Check if Ollama is installed (deprecated)
 ollama --version
 
 # Check if ports are free

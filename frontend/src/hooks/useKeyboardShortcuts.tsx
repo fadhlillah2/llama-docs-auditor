@@ -6,7 +6,12 @@ interface ShortcutHandlers {
   onSave?: () => void;
   onToggleSuggestions?: () => void;
   onUpload?: () => void;
+  onDocuments?: () => void;
+  onAnalytics?: () => void;
+  onInsights?: () => void;
   onHelp?: () => void;
+  onNextTab?: () => void;
+  onPrevTab?: () => void;
 }
 
 const useKeyboardShortcuts = (handlers: ShortcutHandlers) => {
@@ -63,9 +68,46 @@ const useKeyboardShortcuts = (handlers: ShortcutHandlers) => {
         }
         break;
 
+      case 'd':
+        if (isCtrl && !shiftKey && !altKey) {
+          handlers.onDocuments?.();
+          shouldPreventDefault = true;
+        }
+        break;
+
+      case 'a':
+        if (isCtrl && !shiftKey && !altKey) {
+          handlers.onAnalytics?.();
+          shouldPreventDefault = true;
+        }
+        break;
+
+      case 'i':
+        if (isCtrl && !shiftKey && !altKey) {
+          handlers.onInsights?.();
+          shouldPreventDefault = true;
+        }
+        break;
+
       case '?':
         if (!isCtrl && !shiftKey && !altKey) {
           handlers.onHelp?.();
+          shouldPreventDefault = true;
+        }
+        break;
+
+      case 'arrowright':
+      case 'arrowdown':
+        if (!isCtrl && !shiftKey && !altKey) {
+          handlers.onNextTab?.();
+          shouldPreventDefault = true;
+        }
+        break;
+
+      case 'arrowleft':
+      case 'arrowup':
+        if (!isCtrl && !shiftKey && !altKey) {
+          handlers.onPrevTab?.();
           shouldPreventDefault = true;
         }
         break;
@@ -114,6 +156,7 @@ const useKeyboardShortcuts = (handlers: ShortcutHandlers) => {
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
+    return undefined;
   }, [handleKeyDown]);
 };
 

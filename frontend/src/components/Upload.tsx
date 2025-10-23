@@ -483,11 +483,12 @@ function Upload(): JSX.Element {
     <div className="container-fluid pt-5 px-10">
       <section id="about" className="py-10 text-white">
         <div className="text-center mt-8">
-          <h2 className="text-2xl font-semibold mb-4 px-4">
+          <h2 className="text-3xl font-bold mb-6 px-4 text-cyan-400 drop-shadow-lg">
             📁 Upload Your Documents
           </h2>
-          <p className="text-gray-300 mb-6 px-4">
+          <p className="text-lg text-gray-200 mb-8 px-4 max-w-2xl mx-auto leading-relaxed">
             Drag and drop your contract documents or click to browse.
+            <br />
             Supports PDF, DOCX, DOC, and TXT files up to 16MB.
           </p>
 
