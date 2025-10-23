@@ -12,10 +12,6 @@ import type {
   ChatApiResponse
 } from "../types/api";
 
-interface TechStackItem {
-  category: string;
-  technologies: string;
-}
 
 function Chat(): JSX.Element {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -49,6 +45,24 @@ function Chat(): JSX.Element {
     loadConversationHistory();
     loadDocuments();
   }, []);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    const messagesContainer = document.querySelector(".messages-container") as HTMLElement;
+    if (messagesContainer) {
+      const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 100;
+
+      // Only auto-scroll if user is near bottom or it's a new conversation
+      if (isNearBottom || chatMessages.length <= 2) {
+        setTimeout(() => {
+          messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: "smooth",
+          });
+        }, 100);
+      }
+    }
+  }, [chatMessages]);
 
   const loadDocuments = () => {
     try {
@@ -149,32 +163,16 @@ function Chat(): JSX.Element {
     }
   }, [startNewConversation]);
 
-  // Chat control functions with proper typing
-  const openChart = useCallback((): void => {
-    const chatElement = document.getElementById("assistant-chat");
-    if (chatElement) {
-      chatElement.classList.add("show");
-      chatElement.classList.remove("hide");
-    }
-  }, []);
-
-  const closeChart = useCallback((): void => {
-    const chatElement = document.getElementById("assistant-chat");
-    if (chatElement) {
-      chatElement.classList.add("hide");
-      chatElement.classList.remove("show");
-    }
-  }, []);
-
+  
   const chatScrollUp = useCallback((): void => {
-    const elem = document.querySelector(".start-chat") as HTMLElement;
-    if (elem) {
+    const messagesContainer = document.querySelector(".messages-container") as HTMLElement;
+    if (messagesContainer) {
       setTimeout(() => {
-        elem.scrollTo({
-          top: elem.scrollHeight,
+        messagesContainer.scrollTo({
+          top: messagesContainer.scrollHeight,
           behavior: "smooth",
         });
-      }, 200);
+      }, 100);
     }
   }, []);
 
@@ -440,86 +438,9 @@ function Chat(): JSX.Element {
     setSelectedCategory(selectedCategory === category ? null : category);
   };
 
-  // Tech stack data with proper typing
-  const techStack: TechStackItem[] = [
-    { category: "Large Language Model", technologies: "Groq llama-3.3-70b-versatile, Langchain" },
-    { category: "Chunking", technologies: "RecursiveCharacterTextSplitter (800 chars, 100 overlap)" },
-    { category: "Vector Store", technologies: "ChromaDB with persistent caching" },
-    { category: "Retriever", technologies: "Hybrid Search (Semantic + Keyword)" },
-    { category: "Generation and Embedding", technologies: "HuggingFace Sentence Transformers all-MiniLM-L6-v2" },
-    { category: "Architecture", technologies: "Session-based state management with rate limiting" }
-  ];
-
   return (
     <div>
-      <section id="about" className="py-10 text-white">
-        <div className="mt-10">
-          <h3 className="text-4xl font-semibold text-justify leading-7 w-11/12 mx-auto">
-            High-Precision Legal Expert LLM APP{" "}
-            <span className="text-cyan-600">Contract Advisor RAG</span>
-          </h3>
-
-          <h3 className="text-2xl font-semibold text-justify leading-7 w-11/12 mx-auto pt-10">
-            10 Academy Cohort A weekly challenge: Week 11.
-          </h3>
-          
-          <p className="text-justify leading-7 w-11/12 mx-auto">
-            The goal of this challenge is to build, evaluate and improve a RAG system 
-            for Contract Q&A, chatting with a contract and asking questions about the contract.
-          </p>
-          
-          <h3 className="text-2xl font-semibold text-justify leading-7 w-11/12 mx-auto pt-10">
-            Business Objective:
-          </h3>
-          
-          <p className="text-justify leading-7 w-11/12 mx-auto">
-            Developing the next-generation contract AI by leveraging Hybrid LLM technology 
-            (edge, private cloud and LLM services), to build the first, fully autonomous, 
-            artificial contract lawyer. The first step in our journey is a powerful contract 
-            assistant, with the ultimate goal of developing a fully autonomous contract bot, 
-            capable of drafting, reviewing, and negotiating contracts, independently, 
-            end-to-end, without human assistance.
-          </p>
-          
-          <h3 className="text-2xl font-semibold text-justify leading-7 w-11/12 mx-auto pt-10">
-            Project Methodology:
-          </h3>
-          
-          <p className="text-justify leading-7 w-11/12 mx-auto">
-            The project consists of the following tasks:
-          </p>
-          
-          <ul className="text-justify leading-7 w-11/12 mx-auto list-disc list-inside">
-            <li>Task 1: Research ways to improve RAG systems in general.</li>
-            <li>Task 2: Build simple Q&A pipeline with RAG using Langchain</li>
-            <li>Task 3: Build a RAG evaluation pipeline with RAGAS</li>
-            <li>Task 4: Idea to optimize Contract Q&A</li>
-            <li>Task 5: Implement at least two enhancements</li>
-            <li>Task 6: Interpretation & Reporting</li>
-          </ul>
-          
-          <div className="flex flex-row-reverse">
-            <div className="grid grid-cols-1">
-              <div>
-                <h3 className="text-2xl font-semibold text-justify leading-7 mx-auto pt-10">
-                  Tech-Stacks Used:
-                </h3>
-                
-                <ul className="text-justify leading-7 mx-auto">
-                  {techStack.map((item, index) => (
-                    <li key={index}>
-                      <span className="text-cyan-600">{item.category}:</span> {item.technologies}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      <div>
-        <div id="assistant-chat" className="hide ai_chart">
+      <div id="assistant-chat" className="show ai_chart">
           <div className="header-chat">
             <div className="head-home">
               <div className="info-avatar">
@@ -548,16 +469,16 @@ function Chat(): JSX.Element {
             <div className="flex items-center space-x-2">
               <button
                 onClick={startNewConversation}
-                className="text-xs px-2 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition-colors"
+                className="text-xs px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg hover:from-cyan-600 hover:to-cyan-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 title="Start new conversation"
                 aria-label="Start new conversation"
               >
                 New Chat
               </button>
-              
+
               <button
                 onClick={clearConversationHistory}
-                className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                className="text-xs px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 title="Clear all history"
                 aria-label="Clear conversation history"
               >
@@ -568,8 +489,8 @@ function Chat(): JSX.Element {
 
           <div className="start-chat">
             {error && !isConnected && (
-              <div className="p-4">
-                <ConnectionErrorMessage 
+              <div className="p-4 flex-shrink-0">
+                <ConnectionErrorMessage
                   onRetry={() => {
                     setError(null);
                     setIsConnected(true);
@@ -579,8 +500,8 @@ function Chat(): JSX.Element {
               </div>
             )}
             {error && isConnected && (
-              <div className="p-4">
-                <ChatErrorMessage 
+              <div className="p-4 flex-shrink-0">
+                <ChatErrorMessage
                   message={error}
                   onRetry={() => {
                     setError(null);
@@ -591,23 +512,24 @@ function Chat(): JSX.Element {
               </div>
             )}
             <div className="assistant-chat-body">
-              {chatMessages.map((chatMessage, index) => (
-                <Message
-                  key={chatMessage.id || `msg-${index}`}
-                  position={chatMessage.position}
-                  message={chatMessage.message}
-                />
-              ))}
-              {isLoading && (
-                <EnhancedChatTypingIndicator
-                  stage={loadingStage}
-                  progress={loadingProgress}
-                  message={loadingMessage}
-                />
-              )}
+              <div className="messages-container flex-1 overflow-y-auto">
+                {chatMessages.map((chatMessage, index) => (
+                  <Message
+                    key={chatMessage.id || `msg-${index}`}
+                    position={chatMessage.position}
+                    message={chatMessage.message}
+                  />
+                ))}
+                {isLoading && (
+                  <EnhancedChatTypingIndicator
+                    stage={loadingStage}
+                    progress={loadingProgress}
+                    message={loadingMessage}
+                  />
+                )}
 
-              {/* Enhanced Contextual Suggestions */}
-              {chatMessages.length <= 1 && !isLoading && (
+                {/* Enhanced Contextual Suggestions */}
+                {chatMessages.length <= 1 && !isLoading && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-medium text-gray-300">
@@ -711,7 +633,8 @@ function Chat(): JSX.Element {
                     </div>
                   )}
                 </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="blanter-msg">
@@ -791,42 +714,7 @@ function Chat(): JSX.Element {
               }} />
             </div>
           </div>
-          
-          <button 
-            className="close-chat" 
-            onClick={closeChart}
-            aria-label="Close chat"
-            type="button"
-          >
-            &times;
-          </button>
         </div>
-        
-        {/* Mobile Chat Button - Only visible on mobile */}
-        <button
-          onClick={() => setIsMobileChatOpen(true)}
-          className="lg:hidden fixed bottom-4 right-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 transform hover:scale-105 z-40"
-          title="Open Mobile Chat"
-          aria-label="Open mobile chat"
-          type="button"
-        >
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-          </svg>
-        </button>
-
-        {/* Desktop Chat Button - Only visible on desktop */}
-        <button
-          onClick={openChart}
-          className="hidden lg:flex blantershow-chat"
-          title="Show Chat"
-          aria-label="Open chat"
-          type="button"
-        >
-          <Svg />
-          Chat with your legal document
-        </button>
-      </div>
 
       {/* Mobile Chat Component */}
       <MobileChat
