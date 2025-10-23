@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Squares2X2Icon,
@@ -19,6 +19,11 @@ interface Shortcut {
 
 const KeyboardShortcutsHint: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<HTMLButtonElement>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const dragButtonStartPos = useRef({ x: 0, y: 0 });
 
   const shortcuts: Shortcut[] = [
     {
@@ -69,15 +74,141 @@ const KeyboardShortcutsHint: React.FC = () => {
 
   const toggleVisible = () => setIsVisible(!isVisible);
 
+  // Initialize default position to avoid chat area
+  useEffect(() => {
+    const buttonWidth = 60; // approximate button width
+    const buttonHeight = 60; // approximate button height
+    const bottomPadding = 180; // increased padding to avoid chat input area
+    const sidePadding = 24; // spacing from side edges
+
+    // Position to bottom right but above chat input area
+    setPosition({
+      x: window.innerWidth - buttonWidth - sidePadding,
+      y: window.innerHeight - buttonHeight - bottomPadding
+    });
+  }, []);
+
+  // Handle drag start
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    if (dragRef.current) {
+      const rect = dragRef.current.getBoundingClientRect();
+      dragButtonStartPos.current = { x: rect.left, y: rect.top };
+    }
+  };
+
+  // Handle touch start for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const touch = e.touches[0];
+    dragStartPos.current = { x: touch.clientX, y: touch.clientY };
+    if (dragRef.current) {
+      const rect = dragRef.current.getBoundingClientRect();
+      dragButtonStartPos.current = { x: rect.left, y: rect.top };
+    }
+  };
+
+  // Handle drag move
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const deltaX = e.clientX - dragStartPos.current.x;
+      const deltaY = e.clientY - dragStartPos.current.y;
+
+      let newX = dragButtonStartPos.current.x + deltaX;
+      let newY = dragButtonStartPos.current.y + deltaY;
+
+      // Keep button within viewport bounds
+      const buttonSize = 60;
+      const padding = 10;
+
+      newX = Math.max(padding, Math.min(newX, window.innerWidth - buttonSize - padding));
+      newY = Math.max(padding, Math.min(newY, window.innerHeight - buttonSize - padding));
+
+      setPosition({ x: newX, y: newY });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - dragStartPos.current.x;
+      const deltaY = touch.clientY - dragStartPos.current.y;
+
+      let newX = dragButtonStartPos.current.x + deltaX;
+      let newY = dragButtonStartPos.current.y + deltaY;
+
+      // Keep button within viewport bounds
+      const buttonSize = 60;
+      const padding = 10;
+
+      newX = Math.max(padding, Math.min(newX, window.innerWidth - buttonSize - padding));
+      newY = Math.max(padding, Math.min(newY, window.innerHeight - buttonSize - padding));
+
+      setPosition({ x: newX, y: newY });
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove);
+      document.addEventListener('touchend', handleTouchEnd);
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+      };
+    }
+  }, [isDragging]);
+
   return (
     <>
       {/* Trigger Button */}
       <button
-        onClick={toggleVisible}
-        className="fixed bottom-6 right-6 p-3 bg-cyan-600 text-white rounded-full shadow-lg hover:bg-cyan-700 transition-all duration-200 hover:scale-110 z-40"
-        title="Keyboard shortcuts"
+        ref={dragRef}
+        onClick={(e) => !isDragging && toggleVisible()}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        className={`fixed p-3 bg-cyan-600 text-white rounded-full shadow-lg hover:bg-cyan-700 transition-all duration-200 z-40 ${
+          isDragging
+            ? 'cursor-grabbing scale-110 shadow-2xl'
+            : 'cursor-grab hover:scale-110'
+        }`}
+        title="Keyboard shortcuts (drag to move)"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          touchAction: 'none',
+          userSelect: 'none'
+        }}
       >
-        <Squares2X2Icon className="w-5 h-5" />
+        {/* Drag indicator */}
+        {isDragging && (
+          <div className="absolute inset-0 rounded-full border-2 border-white border-dashed animate-pulse" />
+        )}
+
+        {/* Drag hint icon */}
+        {!isDragging && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gray-600 rounded-full flex items-center justify-center">
+            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+          </div>
+        )}
+
+        <Squares2X2Icon className="w-5 h-5 relative z-10" />
       </button>
 
       {/* Shortcuts Modal */}

@@ -14,14 +14,7 @@ import type {
 
 
 function Chat(): JSX.Element {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      position: "left_bubble",
-      message: "🤖 **Welcome to Legal Expert AI - High-Precision Contract Advisor RAG**\n\nI'm your specialized AI assistant powered by advanced Retrieval-Augmented Generation technology. I can help you analyze, understand, and extract insights from legal contracts with high precision.\n\n**How I can help:**\n• 📄 Analyze contract terms and clauses\n• 🔍 Explain complex legal language in simple terms\n• ⚖️ Identify potential risks and obligations\n• 💡 Provide insights on payment terms, termination clauses, and more\n• 📊 Extract key information and summarize contract details\n\nPlease upload a contract document first, then ask me any questions about it. I support PDF, DOCX, DOC, and TXT files.\n\nWhat would you like to know about your contract?",
-      timestamp: new Date().toISOString(),
-      id: "welcome-message"
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,21 +174,14 @@ function Chat(): JSX.Element {
   };
 
   const askAI = useCallback(async (): Promise<void> => {
-    const promptInput = document.getElementById("chat-input") as HTMLInputElement;
-    
-    if (!promptInput) {
-      console.error("Chat input element not found");
-      return;
-    }
+    const prompt = inputText.trim();
 
-    const prompt = promptInput.value.trim();
-    
     if (!validateInput(prompt)) {
       console.warn("Invalid input: empty or too long");
       return;
     }
 
-    promptInput.value = "";
+    setInputText("");
     setIsLoading(true);
     setError(null);
 
@@ -324,7 +310,7 @@ function Chat(): JSX.Element {
       setLoadingProgress(0);
       setLoadingMessage('');
     }
-  }, [chatMessages, chatScrollUp]);
+  }, [inputText, chatMessages, chatScrollUp]);
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && !isLoading) {
@@ -401,7 +387,7 @@ function Chat(): JSX.Element {
 
       // Update suggestions if we have smart ones
       if (smartSuggestions.length > 0) {
-        setContextualSuggestions(prev => [...new Set([...smartSuggestions, ...prev.slice(0, 5)])]);
+        setContextualSuggestions(prev => [...Array.from(new Set([...smartSuggestions, ...prev.slice(0, 5)]))]);
       }
     } catch (error) {
       console.error('Error generating smart suggestions:', error);
@@ -426,11 +412,11 @@ function Chat(): JSX.Element {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const handleSuggestionClick = (suggestion: string) => {
-    const input = document.getElementById("chat-input") as HTMLInputElement;
-    if (input) {
-      input.value = suggestion;
+    setInputText(suggestion);
+    // Use setTimeout to ensure the state is updated before calling askAI
+    setTimeout(() => {
       askAI();
-    }
+    }, 0);
     setSuggestionsVisible(false);
   };
 
@@ -528,172 +514,293 @@ function Chat(): JSX.Element {
                   />
                 )}
 
-                {/* Enhanced Contextual Suggestions */}
-                {chatMessages.length <= 1 && !isLoading && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-medium text-gray-300">
-                      💬 Smart Suggestions
-                    </h4>
-                    <button
-                      onClick={() => setSuggestionsVisible(!suggestionsVisible)}
-                      className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-                    >
-                      {suggestionsVisible ? 'Hide' : 'Show'} suggestions
-                    </button>
+                        {/* Enhanced Contextual Suggestions */}
+              {chatMessages.length === 0 && !isLoading && (
+                <div className="welcome-suggestions-container">
+                  <div className="welcome-header">
+                    <div className="welcome-title">
+                      <div className="welcome-icon">🤖</div>
+                      <h3 className="welcome-heading">Welcome to Legal Expert AI</h3>
+                      <p className="welcome-subtitle">Your intelligent contract advisor powered by advanced AI</p>
+                    </div>
                   </div>
 
-                  {suggestionsVisible && (
-                    <div className="space-y-3">
-                      {/* Quick Questions */}
-                      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                        <p className="text-xs text-gray-400 mb-2">Quick Questions:</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {contextualSuggestions.slice(0, 6).map((suggestion, index) => (
+                  <div className="suggestions-section">
+                    {/* Quick Start Actions */}
+                    <div className="suggestion-card">
+                      <div className="suggestion-card-header">
+                        <span className="suggestion-card-icon">⚡</span>
+                        <h4 className="suggestion-card-title">Quick Start</h4>
+                      </div>
+                      <p className="suggestion-card-desc">Get immediate answers with these common questions</p>
+                      <div className="suggestion-grid">
+                        {contextualSuggestions.slice(0, 6).map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="suggestion-chip"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Contract Analysis Categories */}
+                    <div className="suggestion-card">
+                      <div className="suggestion-card-header">
+                        <span className="suggestion-card-icon">📊</span>
+                        <h4 className="suggestion-card-title">Contract Analysis</h4>
+                      </div>
+                      <p className="suggestion-card-desc">Explore different aspects of your contract</p>
+                      <div className="category-grid">
+                        {contractCategories.map((cat) => (
+                          <button
+                            key={cat.category}
+                            onClick={() => handleCategoryClick(cat.category)}
+                            className={`category-card ${
+                              selectedCategory === cat.category ? 'category-card-active' : ''
+                            }`}
+                          >
+                            <div className="category-icon">{cat.icon}</div>
+                            <div className="category-info">
+                              <h5 className="category-name">{cat.category.split(' & ')[0]}</h5>
+                              <p className="category-desc">{cat.category.split(' & ')[1] || 'Analysis'}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Category-specific questions */}
+                      {selectedCategory && (
+                        <div className="category-questions">
+                          <h5 className="category-questions-title">
+                            {contractCategories.find(cat => cat.category === selectedCategory)?.icon} {selectedCategory}
+                          </h5>
+                          <div className="category-questions-grid">
+                            {contractCategories
+                              .find(cat => cat.category === selectedCategory)
+                              ?.questions.map((question, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleSuggestionClick(question)}
+                                  className="category-question-item"
+                                >
+                                  {question}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Advanced Analysis Tools */}
+                    <div className="suggestion-card">
+                      <div className="suggestion-card-header">
+                        <span className="suggestion-card-icon">🔬</span>
+                        <h4 className="suggestion-card-title">Advanced Analysis</h4>
+                      </div>
+                      <p className="suggestion-card-desc">Deep dive into contract details and risks</p>
+                      <div className="advanced-actions">
+                        <button
+                          onClick={() => handleSuggestionClick("Summarize the key terms and conditions of this contract.")}
+                          className="advanced-action-btn advanced-action-purple"
+                        >
+                          <span className="advanced-action-icon">📋</span>
+                          <div className="advanced-action-content">
+                            <h5 className="advanced-action-title">Contract Summary</h5>
+                            <p className="advanced-action-desc">Get a comprehensive overview of key terms</p>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => handleSuggestionClick("Identify potential risks or unfavorable clauses.")}
+                          className="advanced-action-btn advanced-action-red"
+                        >
+                          <span className="advanced-action-icon">⚠️</span>
+                          <div className="advanced-action-content">
+                            <h5 className="advanced-action-title">Risk Analysis</h5>
+                            <p className="advanced-action-desc">Identify potential legal risks and issues</p>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => handleSuggestionClick("What clauses should be negotiated or improved?")}
+                          className="advanced-action-btn advanced-action-yellow"
+                        >
+                          <span className="advanced-action-icon">💡</span>
+                          <div className="advanced-action-content">
+                            <h5 className="advanced-action-title">Improvement Suggestions</h5>
+                            <p className="advanced-action-desc">Get recommendations for contract improvements</p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              </div>
+            </div>
+
+            {/* Enhanced Chat Input Area */}
+            <div className="chat-input-wrapper">
+              {/* Quick Actions Toolbar */}
+              <div className="quick-actions-toolbar">
+                <div className="flex items-center space-x-2">
+                  <button className="quick-action-btn" title="Attach file" disabled={isLoading}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
+                  <button className="quick-action-btn" title="Voice input" disabled={isLoading}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </button>
+                  <button className="quick-action-btn" title="Formatting" disabled={isLoading}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
+                    </svg>
+                  </button>
+                  <button className="quick-action-btn" title="Templates" disabled={isLoading}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <div className="text-xs text-gray-400 hidden sm:block">
+                    {selectedFiles && selectedFiles.length > 0
+                      ? `${selectedFiles.length} document${selectedFiles.length > 1 ? 's' : ''} loaded`
+                      : 'No documents loaded'
+                    }
+                  </div>
+                  <button
+                    className="quick-action-btn pulse-animation"
+                    title="Get help"
+                    onClick={() => setSuggestionsVisible(!suggestionsVisible)}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Input Container */}
+              <div className="chat-input-container">
+                {/* Enhanced Input with Modern Styling */}
+                <div className="input-wrapper">
+                  <input
+                    id="chat-input"
+                    type="text"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder={
+                      selectedFiles && selectedFiles.length > 0
+                        ? `Ask about your ${selectedFiles.length} document${selectedFiles.length > 1 ? 's' : ''}...`
+                        : "Hi! I'm your AI legal assistant. Ask me anything about your contracts, or try one of the suggested questions above to get started."
+                    }
+                    maxLength={400}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !isLoading) {
+                        e.preventDefault();
+                        askAI();
+                      }
+                    }}
+                    onFocus={() => setSuggestionsVisible(true)}
+                    disabled={isLoading}
+                    className="chat-input-basic"
+                    aria-label="Chat input"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      lineHeight: '1.5',
+                      color: '#ffffff',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '12px',
+                      outline: 'none',
+                      zIndex: 1000,
+                      position: 'relative',
+                      pointerEvents: 'auto',
+                      minHeight: '48px',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+
+                  {/* Input Enhancements */}
+                  <div className="input-enhancements">
+                    {/* Smart Suggestions Dropdown */}
+                    {suggestionsVisible && !isLoading && (
+                      <div className="suggestions-dropdown">
+                        <div className="suggestions-header">
+                          <span className="suggestions-title">💡 Quick Questions</span>
+                          <button
+                            className="suggestions-close"
+                            onClick={() => setSuggestionsVisible(false)}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="suggestions-grid">
+                          {contextualSuggestions.slice(0, 8).map((suggestion, index) => (
                             <button
                               key={index}
                               onClick={() => handleSuggestionClick(suggestion)}
-                              className="text-left text-xs text-gray-300 bg-gray-700 hover:bg-cyan-900 hover:text-white rounded-lg px-3 py-2 transition-colors duration-200 border border-gray-600 hover:border-cyan-600"
+                              className="suggestion-item"
                             >
                               {suggestion}
                             </button>
                           ))}
                         </div>
                       </div>
+                    )}
 
-                      {/* Contract Categories */}
-                      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                        <p className="text-xs text-gray-400 mb-2">Explore by Category:</p>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                          {contractCategories.map((cat) => (
-                            <button
-                              key={cat.category}
-                              onClick={() => handleCategoryClick(cat.category)}
-                              className={`text-left rounded-lg px-3 py-2 transition-all duration-200 border ${
-                                selectedCategory === cat.category
-                                  ? 'bg-cyan-900 text-white border-cyan-600'
-                                  : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
-                              }`}
-                            >
-                              <div className="flex items-center space-x-1">
-                                <span className="text-sm">{cat.icon}</span>
-                                <span className="text-xs font-medium">{cat.category.split(' & ')[0]}</span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Category-specific questions */}
-                        {selectedCategory && (
-                          <div className="mt-3 pt-3 border-t border-gray-600">
-                            <p className="text-xs text-cyan-400 mb-2">
-                              {contractCategories.find(cat => cat.category === selectedCategory)?.icon} {selectedCategory}:
-                            </p>
-                            <div className="space-y-1">
-                              {contractCategories
-                                .find(cat => cat.category === selectedCategory)
-                                ?.questions.map((question, index) => (
-                                  <button
-                                    key={index}
-                                    onClick={() => handleSuggestionClick(question)}
-                                    className="text-left text-xs text-gray-300 bg-gray-700 hover:bg-cyan-900 hover:text-white rounded px-2 py-1.5 transition-colors duration-200 w-full text-left"
-                                  >
-                                    {question}
-                                  </button>
-                                ))}
-                            </div>
-                          </div>
-                        )}
+                    {/* Character Count and Microphone */}
+                    <div className="input-footer">
+                      <div className="character-count">
+                        <span id="char-count">0</span>/400
                       </div>
 
-                      {/* Advanced Suggestions */}
-                      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                        <p className="text-xs text-gray-400 mb-2">Advanced Analysis:</p>
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => handleSuggestionClick("Summarize the key terms and conditions of this contract.")}
-                            className="text-left text-xs text-gray-300 bg-gray-700 hover:bg-purple-900 hover:text-white rounded-lg px-3 py-2 transition-colors duration-200 border border-gray-600 hover:border-purple-600 w-full"
-                          >
-                            📋 Summarize key terms & conditions
-                          </button>
-                          <button
-                            onClick={() => handleSuggestionClick("Identify potential risks or unfavorable clauses.")}
-                            className="text-left text-xs text-gray-300 bg-gray-700 hover:bg-red-900 hover:text-white rounded-lg px-3 py-2 transition-colors duration-200 border border-gray-600 hover:border-red-600 w-full"
-                          >
-                            ⚠️ Identify potential risks
-                          </button>
-                          <button
-                            onClick={() => handleSuggestionClick("What clauses should be negotiated or improved?")}
-                            className="text-left text-xs text-gray-300 bg-gray-700 hover:bg-yellow-900 hover:text-white rounded-lg px-3 py-2 transition-colors duration-200 border border-gray-600 hover:border-yellow-600 w-full"
-                          >
-                            💡 Suggest improvements
-                          </button>
-                        </div>
+                      <div className="input-actions">
+                        <button
+                          className={`voice-btn ${isLoading ? 'voice-btn-disabled' : ''}`}
+                          title="Voice input (coming soon)"
+                          disabled={isLoading}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
-                )}
-              </div>
-            </div>
-
-            <div className="blanter-msg">
-              <div className="flex items-center space-x-2 px-4 py-3 bg-gray-800 border-t border-gray-600">
-                {/* Voice Input Button (Mock) */}
-                <button
-                  className="text-gray-400 hover:text-cyan-400 transition-colors p-2"
-                  title="Voice input (coming soon)"
-                  disabled={isLoading}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                </button>
-
-                {/* Enhanced Input */}
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    id="chat-input"
-                    placeholder={selectedFiles && selectedFiles.length > 0
-                      ? `Ask about your ${selectedFiles.length} document${selectedFiles.length > 1 ? 's' : ''}...`
-                      : "What can I help you with? Try: 'What are the payment terms?'"
-                    }
-                    maxLength={400}
-                    onKeyPress={handleKeyPress}
-                    onFocus={() => setSuggestionsVisible(true)}
-                    disabled={isLoading}
-                    aria-label="Chat input"
-                    className={`w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 pr-10 placeholder-gray-400 border border-gray-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition-all duration-200 ${
-                      isLoading ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                  />
-
-                  {/* Character count */}
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
-                    <span id="char-count">0</span>/400
                   </div>
                 </div>
 
-                {/* Send Button */}
+                {/* Send Button with Enhanced Animation */}
                 <button
                   onClick={askAI}
                   id="send-it"
-                  className={`bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg p-2.5 transition-all duration-200 transform hover:scale-105 ${
-                    isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                  }`}
+                  className={`send-button ${isLoading ? 'send-button-loading' : 'send-button-ready'}`}
                   disabled={isLoading}
                   aria-label="Send message"
                   type="button"
                   title="Send message (Enter)"
                 >
                   {isLoading ? (
-                    <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 12v4M8 6l4-4 4 4M8 18l4 4 4-4" />
-                    </svg>
+                    <div className="loading-spinner">
+                      <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
                   ) : (
-                    <svg viewBox="0 0 448 448" className="w-5 h-5 fill-current">
-                      <path d="M.213 32L0 181.333 320 224 0 266.667.213 416 448 224z" />
+                    <svg className="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   )}
                 </button>
@@ -702,12 +809,29 @@ function Chat(): JSX.Element {
               {/* Input Enhancement Script */}
               <script dangerouslySetInnerHTML={{
                 __html: `
-                  // Character count functionality
-                  const input = document.getElementById('chat-input');
+                  // Auto-resize textarea
+                  const textarea = document.getElementById('chat-input');
                   const charCount = document.getElementById('char-count');
-                  if (input && charCount) {
-                    input.addEventListener('input', () => {
-                      charCount.textContent = input.value.length;
+
+                  if (textarea) {
+                    textarea.addEventListener('input', function() {
+                      // Auto-resize
+                      this.style.height = 'auto';
+                      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+
+                      // Character count
+                      if (charCount) {
+                        charCount.textContent = this.value.length;
+                      }
+                    });
+
+                    // Focus/blur effects
+                    textarea.addEventListener('focus', () => {
+                      document.querySelector('.chat-input-container').classList.add('input-focused');
+                    });
+
+                    textarea.addEventListener('blur', () => {
+                      document.querySelector('.chat-input-container').classList.remove('input-focused');
                     });
                   }
                 `
@@ -722,11 +846,11 @@ function Chat(): JSX.Element {
         onClose={() => setIsMobileChatOpen(false)}
         onSendMessage={(message) => {
           // Set the message in input and trigger askAI
-          const input = document.getElementById("chat-input") as HTMLInputElement;
-          if (input) {
-            input.value = message;
+          setInputText(message);
+          // Use setTimeout to ensure the state is updated before calling askAI
+          setTimeout(() => {
             askAI();
-          }
+          }, 0);
           setIsMobileChatOpen(false);
         }}
         isLoading={isLoading}
@@ -738,8 +862,12 @@ function Chat(): JSX.Element {
       >
         {/* Pass chat messages to mobile component */}
         <div className="space-y-4">
-          {chatMessages.map((message, index) => (
-            <Message key={index} message={message} />
+          {chatMessages.map((chatMessage, index) => (
+            <Message
+              key={chatMessage.id || `msg-${index}`}
+              position={chatMessage.position}
+              message={chatMessage.message}
+            />
           ))}
         </div>
       </MobileChat>
