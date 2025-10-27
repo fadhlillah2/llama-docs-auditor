@@ -47,17 +47,6 @@ else
     exit 1
 fi
 
-# Install Tesseract OCR system dependency
-echo "🔍 Installing Tesseract OCR..."
-if command -v brew &> /dev/null; then
-    if ! command -v tesseract &> /dev/null; then
-        brew install tesseract
-    else
-        echo "✅ Tesseract already installed: $(tesseract --version)"
-    fi
-else
-    echo "⚠️ Homebrew not found. Please install Tesseract OCR manually."
-fi
 
 # Verify EasyOCR installation
 echo "🧪 Verifying EasyOCR installation..."
