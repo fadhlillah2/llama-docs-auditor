@@ -9,3 +9,4 @@ data
 /.venv-backup-20251027-214658/
 cache
 /backend/.venv/
+/backend/flask_session/
