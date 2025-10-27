@@ -64,7 +64,7 @@ export const HelpProvider: React.FC<HelpProviderProps> = ({ children, customTopi
     {
       id: 'getting-started-upload',
       title: 'Upload Your First Document',
-      content: 'Start by uploading a contract document. We support PDF, DOCX, DOC, and TXT files up to 16MB. Simply drag and drop or click to browse.',
+      content: 'Start by uploading a contract document. We support PDF, DOCX, DOC, TXT files and image formats (PNG, JPG, JPEG, TIFF, BMP, GIF) up to 16MB. For images, OCR technology will extract text automatically. Simply drag and drop or click to browse.',
       type: 'tutorial',
       category: 'getting-started',
       keywords: ['upload', 'first', 'document', 'file', 'start'],
@@ -101,7 +101,7 @@ export const HelpProvider: React.FC<HelpProviderProps> = ({ children, customTopi
     {
       id: 'upload-file-types',
       title: 'Supported File Types',
-      content: 'We support PDF documents, Microsoft Word files (DOCX, DOC), and plain text files (TXT). Maximum file size is 16MB per document.',
+      content: 'We support PDF documents, Microsoft Word files (DOCX, DOC), plain text files (TXT), and image formats (PNG, JPG, JPEG, TIFF, BMP, GIF). Images are processed using OCR technology to extract text. Maximum file size is 16MB per document.',
       type: 'info',
       category: 'upload',
       keywords: ['file', 'type', 'format', 'pdf', 'docx', 'doc', 'txt']

@@ -17,6 +17,7 @@ interface DocumentPreview {
   size: string;
   type: string;
   lastModified: string;
+  preview?: string; // For image previews
 }
 
 interface ProcessingOptions {
@@ -34,6 +35,8 @@ function Upload(): JSX.Element {
   const [uploadStage, setUploadStage] = useState<'uploading' | 'processing' | 'complete' | 'error'>('uploading');
   const [fileName, setFileName] = useState<string>('');
   const [enableMultiUpload, setEnableMultiUpload] = useState<boolean>(false);
+  const [enableBatchProcessing, setEnableBatchProcessing] = useState<boolean>(false);
+  const [batchResults, setBatchResults] = useState<any>(null);
   const [uploadQueue, setUploadQueue] = useState<File[]>([]);
   const [currentUploadIndex, setCurrentUploadIndex] = useState<number>(0);
 
@@ -72,27 +75,50 @@ function Upload(): JSX.Element {
       case 'doc':
       case 'docx': return 'Word Document';
       case 'txt': return 'Text Document';
+      case 'png': return 'PNG Image';
+      case 'jpg':
+      case 'jpeg': return 'JPEG Image';
+      case 'tiff': return 'TIFF Image';
+      case 'bmp': return 'Bitmap Image';
+      case 'gif': return 'GIF Image';
       default: return 'Unknown Document';
     }
   };
 
-  const createDocumentPreview = (file: File): DocumentPreview => {
-    return {
-      file,
-      id: `${file.name}-${Date.now()}`,
-      name: file.name,
-      size: formatFileSize(file.size),
-      type: getFileType(file.name),
-      lastModified: new Date(file.lastModified).toLocaleDateString()
-    };
+  const createDocumentPreview = (file: File): Promise<DocumentPreview> => {
+    return new Promise((resolve) => {
+      const basePreview = {
+        file,
+        id: `${file.name}-${Date.now()}`,
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: getFileType(file.name),
+        lastModified: new Date(file.lastModified).toLocaleDateString()
+      };
+
+      // Generate preview for image files
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            ...basePreview,
+            preview: e.target?.result as string
+          });
+        };
+        reader.onerror = () => resolve(basePreview);
+        reader.readAsDataURL(file);
+      } else {
+        resolve(basePreview);
+      }
+    });
   };
 
   const validateFile = (file: File): { isValid: boolean; error?: string } => {
-    const allowedTypes = ['.pdf', '.doc', '.docx', '.txt'];
+    const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif'];
     const isValidType = allowedTypes.some(type => file.name.toLowerCase().endsWith(type));
 
     if (!isValidType) {
-      return { isValid: false, error: 'Invalid file type. Please select PDF, DOC, DOCX, or TXT files.' };
+      return { isValid: false, error: 'Invalid file type. Please select PDF, DOC, DOCX, TXT, or image files (PNG, JPG, JPEG, TIFF, BMP, GIF).' };
     }
 
     const maxSize = 16 * 1024 * 1024; // 16MB
@@ -137,8 +163,10 @@ function Upload(): JSX.Element {
       return;
     }
 
-    const previews = validFiles.map(createDocumentPreview);
-    setDocumentPreviews(previews);
+    // Generate previews asynchronously for image files
+    Promise.all(validFiles.map(createDocumentPreview)).then(previews => {
+      setDocumentPreviews(previews);
+    });
 
     // Create a new FileList object for valid files
     const dt = new DataTransfer();
@@ -180,8 +208,10 @@ function Upload(): JSX.Element {
       return;
     }
 
-    const previews = validFiles.map(createDocumentPreview);
-    setDocumentPreviews(previews);
+    // Generate previews asynchronously for image files
+    Promise.all(validFiles.map(createDocumentPreview)).then(previews => {
+      setDocumentPreviews(previews);
+    });
     setSelectedFiles(files);
   }, []);
 
@@ -271,7 +301,7 @@ function Upload(): JSX.Element {
 
   const uploadSingleFile = async (file: File): Promise<{success: boolean, error?: string}> => {
     try {
-      const allowedTypes = ['.pdf', '.doc', '.docx', '.txt'];
+      const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif'];
       const isValidType = allowedTypes.some(type => file.name.toLowerCase().endsWith(type));
 
       if (!isValidType) return { success: false, error: 'Invalid file type' };
@@ -313,6 +343,86 @@ function Upload(): JSX.Element {
     }
   };
 
+  const processBatchUpload = async (files: File[]): Promise<void> => {
+    try {
+      setUploadStatus(`📁 Processing ${files.length} files in batch mode...`);
+      setShowEnhancedProgress(true);
+      setCurrentProcessingFile(files[0]);
+
+      const result = await ApiService.uploadBatchAndProcess(files, (progress) => {
+        setUploadProgress(progress.progress);
+        setUploadStage(progress.stage as any);
+        setUploadStatus(progress.message);
+
+        if (progress.totalFiles && progress.completedFiles) {
+          setCurrentProcessingFile(files[Math.min(progress.completedFiles, files.length - 1)]);
+        }
+      });
+
+      if (result.success) {
+        setBatchResults(result.batch_results);
+        setUploadProgress(100);
+        setUploadStage('complete');
+
+        const { files_processed, total_files, processing_time } = result.batch_results || {};
+        const successMessage = `✅ Batch processing complete! ${files_processed}/${total_files} files processed successfully in ${processing_time?.toFixed(1) || 'unknown'}s`;
+        setUploadStatus(successMessage);
+
+        showSwalNotification({
+          title: "Batch Upload Successful",
+          html: `
+            <div class="text-left">
+              <p class="font-semibold">Batch Processing Complete!</p>
+              <p>Successfully processed: <strong>${files_processed}/${total_files}</strong> files</p>
+              <p>Processing time: <strong>${processing_time?.toFixed(1) || 'unknown'}s</strong></p>
+              ${result.batch_results?.failed_files?.length > 0 ?
+                `<p class="text-orange-500">Failed files: ${result.batch_results.failed_files.length}</p>` : ''
+              }
+            </div>
+          `,
+          icon: files_processed === total_files ? "success" : "warning",
+          timer: 6000,
+          position: 'top-right',
+          timerProgressBar: true,
+          showConfirmButton: false,
+        });
+
+        // Save batch results to localStorage
+        localStorage.setItem('batch_results', JSON.stringify(result.batch_results));
+        localStorage.setItem('uploadedDocuments', JSON.stringify(result.batch_results?.file_info || []));
+
+      } else {
+        setUploadStage('error');
+        setUploadStatus(`❌ Batch upload failed: ${result.error}`);
+
+        showSwalNotification({
+          title: "Batch Upload Failed",
+          text: result.error || 'Unknown error occurred',
+          icon: "error",
+          timer: 5000,
+          position: 'top-right',
+          timerProgressBar: true,
+          showConfirmButton: false,
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Batch upload error:', error);
+      setUploadStage('error');
+      setUploadStatus(`❌ Batch upload failed: ${error.message}`);
+
+      showSwalNotification({
+        title: "Batch Upload Error",
+        text: error.message || 'An error occurred during batch upload',
+        icon: "error",
+        timer: 5000,
+        position: 'top-right',
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
+    }
+  };
+
   const handleFileSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setIsUploading(true);
@@ -341,9 +451,15 @@ function Upload(): JSX.Element {
 
     // Handle multiple files
     if (files.length > 1) {
-      setUploadQueue(files);
-      setCurrentUploadIndex(0);
-      await processUploadQueue(files);
+      if (enableBatchProcessing) {
+        // Use batch processing API
+        await processBatchUpload(files);
+      } else {
+        // Use individual upload queue
+        setUploadQueue(files);
+        setCurrentUploadIndex(0);
+        await processUploadQueue(files);
+      }
       return;
     }
 
@@ -550,11 +666,21 @@ function Upload(): JSX.Element {
                   {documentPreviews.map((preview) => (
                     <div key={preview.id} className="flex items-center justify-between bg-gray-700 rounded-lg p-3">
                       <div className="flex items-center space-x-3">
-                        <div className="text-cyan-400">
-                          {preview.type.includes('PDF') ? '📄' : preview.type.includes('Word') ? '📝' : '📃'}
-                        </div>
-                        <div>
-                          <p className="text-sm text-white font-medium truncate max-w-xs">
+                        {preview.preview ? (
+                          <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden border border-gray-600">
+                            <img
+                              src={preview.preview}
+                              alt={preview.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-cyan-400 text-xl">
+                            {preview.type.includes('PDF') ? '📄' : preview.type.includes('Word') ? '📝' : '📃'}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-medium truncate">
                             {preview.name}
                           </p>
                           <p className="text-xs text-gray-400">
@@ -620,6 +746,30 @@ function Upload(): JSX.Element {
                       <span className="text-xs text-gray-300">Generate Summary</span>
                     </label>
                   </div>
+
+                  {/* Batch Processing Options */}
+                  {documentPreviews.length > 1 && (
+                    <div className="mt-4 pt-4 border-t border-gray-600">
+                      <h4 className="text-sm font-medium text-white mb-3">Batch Processing:</h4>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enableBatchProcessing}
+                          onChange={(e) => setEnableBatchProcessing(e.target.checked)}
+                          className="w-4 h-4 text-cyan-600 bg-gray-600 border-gray-500 rounded focus:ring-cyan-500"
+                          disabled={isUploading}
+                        />
+                        <span className="text-xs text-gray-300">
+                          Enable batch processing (faster for multiple files)
+                        </span>
+                      </label>
+                      {enableBatchProcessing && (
+                        <p className="mt-2 text-xs text-gray-400">
+                          📊 Batch mode processes all files simultaneously with enhanced OCR and quality assessment.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -659,24 +809,36 @@ function Upload(): JSX.Element {
                       or click to browse from your computer
                     </p>
                   </div>
-                  <div className="flex items-center justify-center space-x-4 text-xs text-gray-400">
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                      PDF
-                    </span>
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
-                      DOCX
-                    </span>
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-1"></span>
-                      DOC
-                    </span>
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      TXT
-                    </span>
-                    <span>• Max 16MB</span>
+                  <div className="pt-4 border-t border-gray-600">
+                    <div className="space-y-3">
+                      <p className="text-xs text-gray-500 text-center uppercase tracking-wider">Supported formats</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center space-x-1 px-2 py-1 bg-gray-700/50 rounded border border-gray-600">
+                          <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                          <span className="text-xs font-medium text-gray-300">PDF</span>
+                        </div>
+                        <div className="flex items-center space-x-1 px-2 py-1 bg-gray-700/50 rounded border border-gray-600">
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                          <span className="text-xs font-medium text-gray-300">DOCX</span>
+                        </div>
+                        <div className="flex items-center space-x-1 px-2 py-1 bg-gray-700/50 rounded border border-gray-600">
+                          <span className="w-1.5 h-1.5 bg-blue-300 rounded-full"></span>
+                          <span className="text-xs font-medium text-gray-300">DOC</span>
+                        </div>
+                        <div className="flex items-center space-x-1 px-2 py-1 bg-gray-700/50 rounded border border-gray-600">
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                          <span className="text-xs font-medium text-gray-300">TXT</span>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <span className="inline-flex items-center text-xs text-gray-500">
+                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          Maximum file size: 16MB
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <input
@@ -684,7 +846,7 @@ function Upload(): JSX.Element {
                   className="hidden"
                   type="file"
                   id="formFile"
-                  accept=".pdf,.doc,.docx,.txt"
+                  accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.tiff,.bmp,.gif"
                   multiple={enableMultiUpload}
                   disabled={isUploading}
                   onChange={handleFileSelect}

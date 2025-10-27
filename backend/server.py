@@ -19,6 +19,11 @@ sys.path.append('../rag')
 
 from session_manager import session_manager
 
+# Import batch processing
+import sys
+sys.path.append('../rag')
+from rag_pipeline import RAGPipeline, BatchRAGPipeline
+
 # Load environment variables first
 load_dotenv(find_dotenv())
 
@@ -798,7 +803,7 @@ class FeatureFlags:
 # Initialize feature flags
 feature_flags = FeatureFlags()
 
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'docx', 'doc'])
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'])
 
 vector_store_db = '../data/chroma_db'
 
@@ -910,6 +915,51 @@ def sanitize_response_data(data: dict) -> dict:
 
     return sanitized
 
+def validate_image_file(file_path: str, file_ext: str) -> bool:
+    """Validate image files using their magic byte signatures."""
+    try:
+        with open(file_path, 'rb') as f:
+            header = f.read(12)  # Read first 12 bytes for image signatures
+
+        # PNG files: 89 50 4E 47 0D 0A 1A 0A
+        if file_ext == 'png':
+            return (len(header) >= 8 and
+                   header[0] == 0x89 and
+                   header[1:4] == b'PNG' and
+                   header[4:8] == b'\r\n\x1a\n')
+
+        # JPEG files: FF D8 FF
+        elif file_ext in ['jpg', 'jpeg']:
+            return (len(header) >= 3 and
+                   header[0] == 0xFF and
+                   header[1] == 0xD8 and
+                   header[2] == 0xFF)
+
+        # TIFF files: II*\0 or MM\0*
+        elif file_ext in ['tiff', 'tif']:
+            return (len(header) >= 4 and (
+                (header[0:2] == b'II' and header[2:4] == b'\x2a\x00') or  # Little endian
+                (header[0:2] == b'MM' and header[2:4] == b'\x00\x2a')      # Big endian
+            ))
+
+        # BMP files: BM
+        elif file_ext == 'bmp':
+            return (len(header) >= 2 and
+                   header[0:2] == b'BM')
+
+        # GIF files: GIF87a or GIF89a
+        elif file_ext == 'gif':
+            return (len(header) >= 6 and
+                   header[0:3] == b'GIF' and
+                   (header[3:6] == b'87a' or header[3:6] == b'89a'))
+
+        return False
+
+    except Exception as e:
+        print(f"⚠️ Image validation error for {file_ext}: {e}")
+        return False
+
+
 def validate_file_content(file_path: str, filename: str) -> bool:
     """Validate that uploaded file content matches its extension."""
     try:
@@ -950,7 +1000,11 @@ def validate_file_content(file_path: str, filename: str) -> bool:
                     return True
                 except UnicodeDecodeError:
                     return False
-        
+
+        # Image files - validate by magic bytes/signatures
+        elif file_ext in ['png', 'jpg', 'jpeg', 'tiff', 'tif', 'bmp', 'gif']:
+            return validate_image_file(file_path, file_ext)
+
         return False
         
     except Exception as e:
@@ -1507,6 +1561,147 @@ def calculate_document_insights(file_path: str, analysis_data: dict) -> dict:
         print(f"⚠️ Error calculating document insights: {e}")
 
     return insights
+
+@app.route('/upload_batch', methods=['POST'])
+@rate_limit('upload')
+def upload_batch_files():
+    """Upload multiple files and create session-based QA chain with batch processing."""
+    try:
+        # Check if files are present
+        if 'files' not in request.files:
+            return jsonify({
+                "message": 'No files part in the request',
+                "status": 'failed'
+            }), 400
+
+        files = request.files.getlist('files')
+        if not files or all(f.filename == '' for f in files):
+            return jsonify({
+                "message": 'No selected files',
+                "status": 'failed'
+            }), 400
+
+        # Validate and filter files
+        valid_files = []
+        invalid_files = []
+
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                valid_files.append(file)
+            else:
+                invalid_files.append(file.filename if file.filename else 'Unknown file')
+
+        if not valid_files:
+            return jsonify({
+                "message": f'No valid files. Invalid files: {", ".join(invalid_files[:5])}',
+                "status": 'failed'
+            }), 400
+
+        # Get current configuration
+        config = get_config()
+        upload_dir = config.get_upload_dir()
+
+        # Ensure upload directory exists
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Save valid files and collect file paths
+        file_paths = []
+        file_info = []
+
+        for file in valid_files:
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(upload_dir, filename)
+
+            # Handle duplicate filenames
+            counter = 1
+            while os.path.exists(file_path):
+                name, ext = os.path.splitext(filename)
+                file_path = os.path.join(upload_dir, f"{name}_{counter}{ext}")
+                counter += 1
+
+            file.save(file_path)
+            file_paths.append(file_path)
+
+            file_info.append({
+                'filename': os.path.basename(file_path),
+                'size': os.path.getsize(file_path),
+                'type': filename.rsplit('.', 1)[1].lower() if '.' in filename else 'unknown'
+            })
+
+        print(f"📁 Batch upload: {len(file_paths)} files saved")
+
+        # Initialize batch RAG pipeline
+        vector_db_path = os.path.join(upload_dir, 'batch_chroma_db')
+
+        try:
+            print("🚀 Starting batch RAG pipeline...")
+            batch_pipeline = BatchRAGPipeline(file_paths, vector_db_path)
+            result = batch_pipeline.pipeline()
+
+            if not result.get('success'):
+                raise ValueError(f"Batch processing failed: {result.get('error', 'Unknown error')}")
+
+            # Generate session ID
+            session_id = f"batch_session_{secrets.token_urlsafe(16)}"
+
+            # Store session data
+            session[session_id] = {
+                'qa_chain': result['qa_chain'],
+                'file_info': file_info,
+                'upload_time': datetime.now(),
+                'batch_results': result.get('processing_results', {}),
+                'document_count': result.get('document_count', 0),
+                'failed_files': result.get('failed_files', [])
+            }
+
+            session_manager.create_session(session_id, result['qa_chain'], {
+                'file_info': file_info,
+                'processing_results': result.get('processing_results', {}),
+                'failed_files': result.get('failed_files', []),
+                'total_files': result.get('total_files', 0),
+                'files_processed': result.get('files_processed', 0)
+            })
+
+            print(f"✅ Batch session created: {session_id}")
+
+            return jsonify({
+                "message": f"Successfully processed {len(file_paths)} files in batch mode",
+                "session_id": session_id,
+                "status": 'success',
+                "file_info": file_info,
+                "batch_results": {
+                    "total_files": result.get('total_files', 0),
+                    "files_processed": result.get('files_processed', 0),
+                    "failed_files": result.get('failed_files', []),
+                    "document_count": result.get('document_count', 0),
+                    "processing_time": result.get('processing_time', 0),
+                    "processing_results": result.get('processing_results', {})
+                }
+            }), 200
+
+        except Exception as pipeline_error:
+            print(f"❌ Batch pipeline error: {pipeline_error}")
+
+            # Clean up uploaded files on pipeline failure
+            for file_path in file_paths:
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except Exception as cleanup_error:
+                    print(f"Error cleaning up file {file_path}: {cleanup_error}")
+
+            return jsonify({
+                "message": f'Batch processing failed: {str(pipeline_error)}',
+                "status": 'failed',
+                "uploaded_files": len(file_paths)
+            }), 500
+
+    except Exception as e:
+        print(f"❌ Batch upload error: {e}")
+        return jsonify({
+            "message": f'Batch upload failed: {str(e)}',
+            "status": 'failed'
+        }), 500
 
 @app.route('/ask_ai', methods=['POST'])
 @rate_limit('query')

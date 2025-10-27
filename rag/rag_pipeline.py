@@ -21,6 +21,7 @@ class RAGPipeline:
                  ):
         self.uploaded_file = uploaded_file
         self.vector_db_path = vector_db_path
+
     def pipeline(self):
         print("\n" + "="*80, flush=True)
         print("📄 Starting optimized RAG pipeline...", flush=True)
@@ -41,7 +42,7 @@ class RAGPipeline:
             if not documents:
                 raise ValueError("No documents could be loaded")
             print(f"✓ Loaded {len(documents)} documents", flush=True)
-            
+
             # Chunk documents for better retrieval - optimized for contracts
             print("📝 Chunking documents...", flush=True)
             chunks = self._chunk_documents_with_validation(documents)
@@ -75,7 +76,7 @@ class RAGPipeline:
             # Attempt fallback pipeline with minimal functionality
             print("🔄 Attempting fallback pipeline...", flush=True)
             return self._fallback_pipeline()
-    
+
     def _load_documents_with_retry(self, max_retries: int = 3):
         """Load documents with retry logic."""
         for attempt in range(max_retries):
@@ -97,11 +98,11 @@ class RAGPipeline:
                 print(f"⏳ Waiting before retry...", flush=True)
                 time.sleep(1)  # Brief delay before retry
         return []
-    
+
     def _chunk_documents_with_validation(self, documents):
         """Chunk documents with validation - optimized for contract analysis."""
         try:
-            chunk_documents = ChunkDocuments(documents)
+            chunk_documents = ChunkDocuments()
             # Increased chunk size for better context preservation
             # 1200 chars ≈ 300 tokens, allowing better semantic understanding
             chunks = chunk_documents.chunk_documents(chunk_size=1200, chunk_overlap=200)
@@ -119,7 +120,7 @@ class RAGPipeline:
             # Fallback: use documents as-is with basic splitting
             print("🔄 Using fallback chunking...")
             return documents[:50]  # Limit to prevent memory issues
-    
+
     def _initialize_embeddings_with_retry(self, max_retries: int = 3):
         """Initialize embeddings with retry logic."""
         for attempt in range(max_retries):
@@ -129,15 +130,15 @@ class RAGPipeline:
                 test_embedding = embedding_creator.create_embeddings()
                 if test_embedding:
                     return embedding_creator
-                    
+
             except Exception as e:
                 print(f"⚠️ Embedding initialization attempt {attempt + 1} failed: {e}")
                 if attempt == max_retries - 1:
                     raise e
                 time.sleep(2)  # Longer delay for model issues
-        
+
         raise RuntimeError("Failed to initialize embeddings after retries")
-    
+
     def _create_retriever_with_prewarm(self, chunks, embedding_creator):
         """Create retriever with parallel pre-warming."""
         def prewarm_model():
@@ -148,15 +149,15 @@ class RAGPipeline:
             except Exception as e:
                 print(f"⚠️ Model pre-warming failed: {e}")
                 return False
-        
+
         # Run model pre-warming in background while setting up retriever
         try:
             with ThreadPoolExecutor(max_workers=2) as executor:
                 prewarm_future = executor.submit(prewarm_model)
-                
+
                 # Use chunked documents for better retrieval
                 retriever = Retriever(chunks, embedding_creator, self.vector_db_path).get_retriever()
-                
+
                 # Wait for pre-warming to complete (with timeout)
                 try:
                     prewarm_result = prewarm_future.result(timeout=30)
@@ -164,13 +165,13 @@ class RAGPipeline:
                         print("⚠️ Pre-warming failed, but continuing with retriever")
                 except Exception as e:
                     print(f"⚠️ Pre-warming timeout or failed: {e}")
-                
+
                 return retriever
-                
+
         except Exception as e:
             print(f"⚠️ Retriever creation failed: {e}")
             raise e
-    
+
     def _fallback_pipeline(self):
         """Fallback pipeline with minimal functionality."""
         print("🔄 Starting fallback RAG pipeline...")
@@ -178,45 +179,226 @@ class RAGPipeline:
             # Simple document loading without chunking
             loader = LoadDocuments(self.uploaded_file)
             documents = loader.load_document()
-            
+
             if not documents:
                 print("❌ Fallback: No documents available")
                 return None
-            
+
             # Use first few documents only
             limited_docs = documents[:10]  # Limit for performance
             print(f"🔄 Using fallback with {len(limited_docs)} documents")
-            
+
             # Simple embedding using fake embeddings for development
             from embedding import FakeEmbeddings
             simple_embedding = FakeEmbeddings(embedding_dim=384)
-            
+
             # Create basic retriever
             retriever = Retriever(limited_docs, simple_embedding, self.vector_db_path).get_retriever()
             print("✓ Fallback retriever created")
             return retriever
-            
+
         except Exception as e:
             print(f"❌ Fallback pipeline also failed: {e}")
             return None
-    
+
     def qa_chain(self):
         """Create optimized QA chain with context window management."""
         chat_model = ChatModel(GROQ_MODEL_NAME).initialize_chat_model()
         retriever = self.pipeline()
-        
+
         if not retriever:
             print("❌ No retriever available, cannot create QA chain")
             return None
-            
+
         # Create conversation chain with model-specific optimizations
         conversation_chain_creator = ConversationChain(model_name=GROQ_MODEL_NAME)
         conversation_chain = conversation_chain_creator.create_retrieval_qa_chain(chat_model, retriever)
-        
+
         print(f"✓ QA chain created with context optimization for {GROQ_MODEL_NAME}")
         return conversation_chain
 
+class BatchRAGPipeline:
+    def __init__(self,
+                 uploaded_files,
+                 vector_db_path,
+                 max_workers=4):
+        self.uploaded_files = uploaded_files if isinstance(uploaded_files, list) else [uploaded_files]
+        self.vector_db_path = vector_db_path
+        self.max_workers = max_workers
+        self.results = {}
 
-        
-        
-    
+    def pipeline(self):
+        """Process multiple files in batch with progress tracking."""
+        print("\n" + "="*80, flush=True)
+        print("📄 Starting batch RAG pipeline...", flush=True)
+        print(f"📄 Processing {len(self.uploaded_files)} files", flush=True)
+        start_time = time.time()
+
+        try:
+            all_documents = []
+            failed_files = []
+            processing_results = {}
+
+            # Process files concurrently
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                # Submit all file processing tasks
+                future_to_file = {
+                    executor.submit(self._process_single_file, file_path, i): file_path
+                    for i, file_path in enumerate(self.uploaded_files)
+                }
+
+                # Collect results as they complete
+                for future in future_to_file:
+                    file_path = future_to_file[future]
+                    try:
+                        result = future.result()
+                        if result['success']:
+                            all_documents.extend(result['documents'])
+                            processing_results[file_path] = {
+                                'success': True,
+                                'document_count': len(result['documents']),
+                                'quality_info': result.get('quality_info', {}),
+                                'recommendations': result.get('recommendations', [])
+                            }
+                            print(f"✓ Successfully processed: {os.path.basename(file_path)}")
+                        else:
+                            failed_files.append(file_path)
+                            processing_results[file_path] = {
+                                'success': False,
+                                'error': result.get('error', 'Unknown error'),
+                                'recommendations': result.get('recommendations', ['Processing failed'])
+                            }
+                            print(f"✗ Failed to process: {os.path.basename(file_path)} - {result.get('error', 'Unknown error')}")
+                    except Exception as e:
+                        failed_files.append(file_path)
+                        processing_results[file_path] = {
+                            'success': False,
+                            'error': str(e),
+                            'recommendations': ['Processing failed due to system error']
+                        }
+                        print(f"✗ Exception processing {os.path.basename(file_path)}: {e}")
+
+            if not all_documents:
+                raise ValueError("No documents could be loaded from any files")
+
+            print(f"✓ Total documents loaded: {len(all_documents)}", flush=True)
+
+            # Chunk all documents together
+            print("📝 Chunking documents...", flush=True)
+            chunks = self._chunk_documents_with_validation(all_documents)
+            if not chunks:
+                raise ValueError("Document chunking failed")
+            print(f"✓ Created {len(chunks)} optimized chunks for contracts", flush=True)
+
+            # Create embeddings
+            print("🧠 Creating embeddings...", flush=True)
+            embedding_creator = EmbeddingsCreator()
+            embedding_creator.create_embeddings(chunks)
+            print(f"✓ Embeddings created for {len(chunks)} chunks", flush=True)
+
+            # Setup retriever
+            print("🔍 Setting up retriever...", flush=True)
+            retriever = Retriever(self.vector_db_path)
+            retriever.create_vector_store(chunks)
+            retriever.setup_retriever()
+            print("✓ Retriever setup complete", flush=True)
+
+            # Initialize chat model
+            print("💬 Initializing chat model...", flush=True)
+            chat_model = ChatModel()
+            chat_model.load_model()
+            print("✓ Chat model initialized", flush=True)
+
+            # Create conversation chain
+            print("🔗 Creating conversation chain...", flush=True)
+            conversation_chain = ConversationChain(chat_model, retriever)
+            qa_chain = conversation_chain.create_chain()
+            print("✓ Conversation chain created", flush=True)
+
+            end_time = time.time()
+            processing_time = end_time - start_time
+            print(f"\n🎉 Batch RAG pipeline completed in {processing_time:.2f} seconds", flush=True)
+            print(f"📊 Successfully processed: {len(self.uploaded_files) - len(failed_files)}/{len(self.uploaded_files)} files", flush=True)
+
+            if failed_files:
+                print(f"⚠️  Failed files: {len(failed_files)}", flush=True)
+
+            return {
+                'qa_chain': qa_chain,
+                'processing_time': processing_time,
+                'files_processed': len(self.uploaded_files) - len(failed_files),
+                'total_files': len(self.uploaded_files),
+                'failed_files': failed_files,
+                'document_count': len(all_documents),
+                'chunk_count': len(chunks),
+                'processing_results': processing_results,
+                'success': True
+            }
+
+        except Exception as e:
+            print(f"❌ Batch RAG pipeline failed: {e}", flush=True)
+            return {
+                'qa_chain': None,
+                'error': str(e),
+                'success': False,
+                'processing_results': processing_results
+            }
+
+    def _process_single_file(self, file_path: str, index: int) -> dict:
+        """Process a single file and return results."""
+        try:
+            print(f"📥 Processing file {index + 1}/{len(self.uploaded_files)}: {os.path.basename(file_path)}")
+
+            # Validate file exists
+            if not os.path.exists(file_path):
+                return {
+                    'success': False,
+                    'error': f'File not found: {file_path}',
+                    'documents': []
+                }
+
+            # Load documents
+            loader = LoadDocuments(file_path)
+            documents = loader.load_document()
+
+            if not documents:
+                return {
+                    'success': False,
+                    'error': 'No documents could be loaded',
+                    'documents': []
+                }
+
+            # Extract quality information from metadata if available
+            quality_info = {}
+            recommendations = []
+
+            for doc in documents:
+                if hasattr(doc, 'metadata') and doc.metadata:
+                    if doc.metadata.get('file_type') == 'image':
+                        quality_info = {
+                            'ocr_confidence': doc.metadata.get('ocr_confidence', 0),
+                            'ocr_quality': doc.metadata.get('ocr_quality', 'unknown'),
+                            'word_count': doc.metadata.get('word_count', 0),
+                            'image_quality_score': doc.metadata.get('image_quality_score', 0)
+                        }
+                        recommendations = doc.metadata.get('recommendations', [])
+                        break
+
+            return {
+                'success': True,
+                'documents': documents,
+                'quality_info': quality_info,
+                'recommendations': recommendations
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'documents': []
+            }
+
+    def _chunk_documents_with_validation(self, documents):
+        """Re-use the chunking logic from the main pipeline."""
+        chunker = ChunkDocuments()
+        return chunker.chunk_documents(documents)

@@ -59,6 +59,7 @@ High-Precision Contract Advisor RAG is an AI-powered contract analysis system us
 - Advanced features: Mobile-responsive chat, Keyboard shortcuts (Ctrl+K, Ctrl+/), Contextual help system, Onboarding tours, Document analytics, Enhanced error handling
 - Tailwind CSS styling with Ionic React (v7.8.0) and Framer Motion animations
 - Axios HTTP client for API calls with comprehensive error handling
+- Pre-commit hooks with Husky and lint-staged for code quality enforcement
 
 ### Data Flow
 ```
@@ -142,7 +143,7 @@ npm run format       # Prettier formatting
 npm run format:check # Check Prettier formatting
 npm run check-all    # Run type-check, lint, and format:check
 npm run fix-all      # Run lint:fix and format
-npm run clean        # Clean build artifacts
+npm run clean        # Clean build artifacts (.next, out, dist, coverage)
 
 # Dependency management
 npx depcheck         # Check for unused dependencies
@@ -333,9 +334,10 @@ evaluator.print_evaluation_summary(result)
 - **Build**: Next.js with TypeScript compilation
 
 ### Pre-commit Hooks
-- Husky configured for auto-linting on commit
-- lint-staged for efficient file checking
+- Husky configured for auto-linting on commit (via `npm run prepare`)
+- lint-staged for efficient file checking (runs ESLint + Prettier on staged files)
 - Prevents committing code that fails Black/ESLint/mypy/Prettier
+- Configuration in `frontend/package.json` lint-staged section
 
 ### Quality Enforcement
 ```bash

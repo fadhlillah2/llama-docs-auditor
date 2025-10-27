@@ -39,6 +39,25 @@ export interface UploadResponse {
   processing_status: string;
 }
 
+export interface BatchUploadResponse {
+  message: string;
+  status: string;
+  session_id: string;
+  file_info: Array<{
+    filename: string;
+    size: number;
+    type: string;
+  }>;
+  batch_results: {
+    total_files: number;
+    files_processed: number;
+    failed_files: string[];
+    document_count: number;
+    processing_time: number;
+    processing_results: { [key: string]: any };
+  };
+}
+
 export interface ChatResponse {
   result: string;
   error?: string;
@@ -124,6 +143,23 @@ export class ApiService {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    });
+  }
+
+  /**
+   * Upload multiple documents for batch RAG processing
+   */
+  static async uploadBatchDocuments(files: File[]): Promise<AxiosResponse<BatchUploadResponse>> {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    return api.post('/upload_batch', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 600000, // 10 minutes for batch processing
     });
   }
 
@@ -322,6 +358,96 @@ export class ApiService {
 
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || error.message || 'Processing failed';
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Upload and process multiple documents with progress monitoring
+   */
+  static async uploadBatchAndProcess(
+    files: File[],
+    onProgress?: (progress: {
+      stage: string;
+      message: string;
+      progress: number;
+      currentFile?: string;
+      completedFiles?: number;
+      totalFiles?: number;
+      qualityInfo?: any;
+    }) => void
+  ): Promise<{
+    success: boolean;
+    session_id?: string;
+    error?: string;
+    batch_results?: any;
+  }> {
+    try {
+      if (onProgress) {
+        onProgress({
+          stage: 'uploading',
+          message: `Uploading ${files.length} files...`,
+          progress: 5,
+          totalFiles: files.length,
+          completedFiles: 0
+        });
+      }
+
+      // Upload documents in batch
+      const uploadResponse = await this.uploadBatchDocuments(files);
+      const { session_id, status, batch_results } = uploadResponse.data;
+
+      if (status !== 'success') {
+        return { success: false, error: 'Batch upload failed' };
+      }
+
+      if (onProgress) {
+        const successRate = (batch_results.files_processed / batch_results.total_files) * 100;
+        onProgress({
+          stage: 'processing',
+          message: `Processing ${batch_results.files_processed} of ${batch_results.total_files} files...`,
+          progress: 30,
+          totalFiles: batch_results.total_files,
+          completedFiles: batch_results.files_processed
+        });
+      }
+
+      // Monitor processing
+      await this.pollProcessingStatus((status, message) => {
+        if (onProgress) {
+          const progress = status === 'ready' ? 95 :
+                         status === 'processing' ? 70 :
+                         status === 'in_progress' ? 50 : 40;
+          onProgress({
+            stage: status,
+            message: `Batch processing: ${message}`,
+            progress,
+            totalFiles: batch_results.total_files,
+            completedFiles: batch_results.files_processed
+          });
+        }
+      });
+
+      if (onProgress) {
+        const successRate = (batch_results.files_processed / batch_results.total_files) * 100;
+        onProgress({
+          stage: 'completed',
+          message: `Batch processing complete: ${batch_results.files_processed}/${batch_results.total_files} files processed successfully`,
+          progress: 100,
+          totalFiles: batch_results.total_files,
+          completedFiles: batch_results.files_processed,
+          qualityInfo: batch_results.processing_results
+        });
+      }
+
+      return {
+        success: true,
+        session_id,
+        batch_results
+      };
+
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Batch processing failed';
       return { success: false, error: errorMessage };
     }
   }

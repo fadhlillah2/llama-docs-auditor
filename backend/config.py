@@ -27,7 +27,7 @@ class BaseConfig(ABC):
     
     # File upload settings
     MAX_UPLOAD_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', '16777216'))  # 16MB
-    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc'}
+    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'}
     
     # Session settings
     SESSION_TIMEOUT_MINUTES = int(os.environ.get('SESSION_TIMEOUT_MINUTES', '30'))
