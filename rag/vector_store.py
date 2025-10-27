@@ -125,8 +125,9 @@ class VectorStore:
                     embedding_function=None  # We'll handle embeddings ourselves
                 )
                 print(f"✓ Using existing ChromaDB collection: {collection_name}")
-            except ValueError:
+            except Exception as e:
                 # Collection doesn't exist, create with metadata
+                print(f"⚠️ Collection not found, creating new collection: {e}")
                 collection = client.create_collection(
                     name=collection_name,
                     metadata=collection_metadata,

@@ -70,6 +70,20 @@ class EmbeddingsCreator:
 
         return self._embeddings_model
 
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Standard embed_documents method for ChromaDB compatibility."""
+        embeddings_model = self.create_embeddings()
+
+        # Check if the embeddings model has the embed_documents method
+        if hasattr(embeddings_model, 'embed_documents'):
+            return embeddings_model.embed_documents(texts)
+        elif hasattr(embeddings_model, '__call__'):
+            # For ChromaDB DefaultEmbeddingFunction, use __call__ method
+            return embeddings_model(texts)
+        else:
+            # Fallback to cached method
+            return self.embed_documents_cached(texts)
+
     def embed_documents_cached(self, texts: List[str]) -> List[List[float]]:
         """Embed documents with caching support and batch processing."""
         embeddings_model = self.create_embeddings()

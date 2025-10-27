@@ -10,17 +10,18 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 class SimpleRetriever(BaseRetriever):
     """Custom retriever using cosine similarity with performance monitoring."""
-    
+
     def __init__(self, documents, embedding):
         super().__init__()
-        self._documents = documents
-        self._embedding = embedding
-        self._chunks = []
-        self._embeddings = []
-        self._query_cache: Dict[str, List[Document]] = {}
-        self._tfidf_vectorizer = None
-        self._tfidf_matrix = None
-        self._performance_stats = {
+        # Store documents as a private attribute without triggering Pydantic validation
+        object.__setattr__(self, '_documents', documents)
+        object.__setattr__(self, '_embedding', embedding)
+        object.__setattr__(self, '_chunks', [])
+        object.__setattr__(self, '_embeddings', [])
+        object.__setattr__(self, '_query_cache', {})
+        object.__setattr__(self, '_tfidf_vectorizer', None)
+        object.__setattr__(self, '_tfidf_matrix', None)
+        object.__setattr__(self, '_performance_stats', {
             'setup_time': 0,
             'total_queries': 0,
             'avg_query_time': 0,
@@ -28,7 +29,7 @@ class SimpleRetriever(BaseRetriever):
             'semantic_searches': 0,
             'keyword_searches': 0,
             'hybrid_searches': 0
-        }
+        })
         self._setup()
     
     def _setup(self):
@@ -36,7 +37,7 @@ class SimpleRetriever(BaseRetriever):
         setup_start = time.time()
         
         # Documents are already chunked, so use them directly
-        self._chunks = self._documents
+        object.__setattr__(self, '_chunks', self._documents)
         print(f"✓ Using {len(self._chunks)} pre-chunked documents")
         
         # Create embeddings for all chunks using caching
@@ -45,11 +46,16 @@ class SimpleRetriever(BaseRetriever):
             chunk_texts = [chunk.page_content for chunk in self._chunks]
             print(f"📊 Processing {len(chunk_texts)} chunk texts...")
             
-            # Use cached embedding method if available
-            if hasattr(self._embedding, 'embed_documents_cached'):
-                self._embeddings = self._embedding.embed_documents_cached(chunk_texts)
+            # Use appropriate embedding method
+            if hasattr(self._embedding, 'embed_documents'):
+                object.__setattr__(self, '_embeddings', self._embedding.embed_documents(chunk_texts))
+            elif hasattr(self._embedding, '__call__'):
+                # For ChromaDB DefaultEmbeddingFunction, use __call__ method
+                object.__setattr__(self, '_embeddings', self._embedding(chunk_texts))
+            elif hasattr(self._embedding, 'embed_documents_cached'):
+                object.__setattr__(self, '_embeddings', self._embedding.embed_documents_cached(chunk_texts))
             else:
-                self._embeddings = self._embedding.embed_documents(chunk_texts)
+                raise AttributeError(f"Embedding function {type(self._embedding)} does not have embed_documents, embed_documents_cached, or __call__ method")
             
             print(f"✓ Created embeddings for {len(self._embeddings)} chunks")
             
@@ -79,7 +85,7 @@ class SimpleRetriever(BaseRetriever):
             # Create TF-IDF vectorizer optimized for legal documents
             # Adjust min_df for single documents - use 1 instead of 2
             min_df = 1 if len(chunk_texts) < 2 else 2
-            self._tfidf_vectorizer = TfidfVectorizer(
+            object.__setattr__(self, '_tfidf_vectorizer', TfidfVectorizer(
                 max_features=5000,
                 stop_words='english',
                 ngram_range=(1, 2),  # Include bigrams for legal terms
@@ -87,15 +93,15 @@ class SimpleRetriever(BaseRetriever):
                 max_df=0.8,  # Ignore terms that appear in >80% of documents
                 lowercase=True,
                 token_pattern=r'\b[A-Za-z][A-Za-z]+\b'  # Only alphabetic tokens
-            )
+            ))
 
-            self._tfidf_matrix = self._tfidf_vectorizer.fit_transform(chunk_texts)
+            object.__setattr__(self, '_tfidf_matrix', self._tfidf_vectorizer.fit_transform(chunk_texts))
             print(f"✓ TF-IDF setup complete with {self._tfidf_matrix.shape[1]} features")
 
         except Exception as e:
             print(f"⚠️ TF-IDF setup failed: {e}")
-            self._tfidf_vectorizer = None
-            self._tfidf_matrix = None
+            object.__setattr__(self, '_tfidf_vectorizer', None)
+            object.__setattr__(self, '_tfidf_matrix', None)
     
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun = None) -> List[Document]:
         if not self._chunks or not self._embeddings:
@@ -512,17 +518,17 @@ class ChromaDBEnhancedRetriever(BaseRetriever):
     
     def __init__(self, vector_store, vector_store_wrapper, fallback_retriever):
         super().__init__()
-        self.vector_store = vector_store
-        self.vector_store_wrapper = vector_store_wrapper
-        self.fallback_retriever = fallback_retriever
-        self._query_cache = {}
-        self._performance_stats = {
+        object.__setattr__(self, 'vector_store', vector_store)
+        object.__setattr__(self, 'vector_store_wrapper', vector_store_wrapper)
+        object.__setattr__(self, 'fallback_retriever', fallback_retriever)
+        object.__setattr__(self, '_query_cache', {})
+        object.__setattr__(self, '_performance_stats', {
             'chromadb_queries': 0,
             'fallback_queries': 0,
             'cache_hits': 0,
             'avg_query_time': 0,
             'total_queries': 0
-        }
+        })
     
     def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
         """Get relevant documents using ChromaDB with fallback."""

@@ -162,7 +162,162 @@ class OptimizedConversationalRetrievalChain(ConversationalRetrievalChain):
     @classmethod
     def from_llm(cls, context_optimizer=None, max_tokens_limit=1500, **kwargs):
         """Create optimized chain from LLM."""
-        chain = super().from_llm(**kwargs)
-        chain.__dict__['context_optimizer'] = context_optimizer
-        chain.__dict__['max_tokens_limit'] = max_tokens_limit
-        return chain
+        try:
+            chain = super().from_llm(**kwargs)
+            chain.__dict__['context_optimizer'] = context_optimizer
+            chain.__dict__['max_tokens_limit'] = max_tokens_limit
+            return chain
+        except Exception as e:
+            print(f"⚠️ Failed to create OptimizedConversationalRetrievalChain: {e}")
+            print("🔄 Falling back to standard ConversationalRetrievalChain")
+            try:
+                # Fallback to standard chain without optimizations
+                from langchain.chains import ConversationalRetrievalChain
+                return ConversationalRetrievalChain.from_llm(**kwargs)
+            except Exception as e2:
+                print(f"⚠️ Failed to create standard ConversationalRetrievalChain: {e2}")
+                print("🔄 Falling back to SimpleDirectQAChain (bypasses LLMChain validation)")
+                # Final fallback to simple direct QA chain
+                return SimpleDirectQAChain(**kwargs)
+
+
+class SimpleDirectQAChain:
+    """Simplified QA chain that bypasses LLMChain validation issues."""
+
+    def __init__(self, llm, retriever, **kwargs):
+        """Initialize simple direct QA chain."""
+        self.llm = llm
+        self.retriever = retriever
+        self.kwargs = kwargs
+        print("✓ SimpleDirectQAChain initialized successfully")
+
+    def invoke(self, inputs):
+        """Invoke method for LangChain compatibility."""
+        return self.__call__(inputs)
+
+    def __call__(self, inputs):
+        """Process question through retriever and LLM directly."""
+        try:
+            question = inputs.get('question', '')
+            chat_history = inputs.get('chat_history', [])
+
+            print(f"📝 Processing question: {question[:100]}...")
+
+            # Retrieve relevant documents
+            if self.retriever:
+                docs = self.retriever.get_relevant_documents(question)
+                print(f"📚 Retrieved {len(docs)} relevant documents")
+
+                # Combine document content
+                context = "\n\n".join([doc.page_content for doc in docs[:5]])  # Limit to top 5
+
+                # Create prompt with context
+                system_prompt = """You are an expert contract analysis assistant. Based on the provided document context, answer the user's question comprehensively and accurately.
+
+CONTEXT FROM DOCUMENT:
+{context}
+
+QUESTION: {question}
+
+Provide a thorough answer based on the document context above. If the information is not available in the context, state that clearly.""".format(context=context[:4000], question=question)  # Limit context length
+
+                # Format with chat history if provided
+                messages = [{"role": "system", "content": system_prompt}]
+
+                # Add chat history (simplified)
+                for msg in chat_history[-4:]:  # Keep last 4 messages
+                    if isinstance(msg, dict):
+                        if msg.get('type') == 'human':
+                            messages.append({"role": "user", "content": msg.get('content', '')})
+                        elif msg.get('type') == 'ai':
+                            messages.append({"role": "assistant", "content": msg.get('content', '')})
+
+                messages.append({"role": "user", "content": question})
+
+                # Generate response using LLM directly
+                response = self.llm.invoke(messages)
+
+                # Extract content from response
+                if hasattr(response, 'content'):
+                    answer = response.content
+                elif isinstance(response, str):
+                    answer = response
+                else:
+                    answer = str(response)
+
+                print("✅ Generated response successfully")
+
+                return {
+                    'question': question,
+                    'answer': answer,
+                    'source_documents': docs,
+                    'chat_history': chat_history
+                }
+            else:
+                return {
+                    'question': question,
+                    'answer': 'I apologize, but the document retriever is not available. Please upload a document first.',
+                    'source_documents': [],
+                    'chat_history': chat_history
+                }
+
+        except Exception as e:
+            print(f"❌ Error in SimpleDirectQAChain: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'question': inputs.get('question', ''),
+                'answer': f'I apologize, but I encountered an error while processing your question: {str(e)}',
+                'source_documents': [],
+                'chat_history': inputs.get('chat_history', [])
+            }
+
+
+class OptimizedConversationalRetrievalChain(ConversationalRetrievalChain):
+    """Extended ConversationalRetrievalChain with context optimization."""
+
+    def __init__(self, context_optimizer=None, max_tokens_limit=1500, **kwargs):
+        super().__init__(**kwargs)
+        self.__dict__['context_optimizer'] = context_optimizer
+        self.__dict__['max_tokens_limit'] = max_tokens_limit
+
+    def _get_docs(self, question: str, inputs: dict, *, run_manager=None) -> List[Document]:
+        """Get documents with potential optimization."""
+        docs = super()._get_docs(question, inputs, run_manager=run_manager)
+
+        # Apply context optimization if available
+        context_optimizer = self.__dict__.get('context_optimizer')
+        max_tokens_limit = self.__dict__.get('max_tokens_limit', 1500)
+
+        if context_optimizer and docs:
+            # Estimate tokens and optimize if needed
+            total_content = " ".join([doc.page_content for doc in docs])
+            estimated_tokens = len(total_content.split()) * 1.3  # Rough token estimation
+
+            if estimated_tokens > max_tokens_limit * 0.7:  # Use 70% of limit for context
+                print(f"⚠️ Context optimization: {estimated_tokens:.0f} tokens -> optimizing")
+                # Return fewer, more relevant documents
+                return docs[:3]  # Limit to top 3 most relevant
+
+        return docs
+
+    @classmethod
+    def from_llm(cls, context_optimizer=None, max_tokens_limit=1500, **kwargs):
+        """Create optimized chain from LLM."""
+        try:
+            chain = super().from_llm(**kwargs)
+            chain.__dict__['context_optimizer'] = context_optimizer
+            chain.__dict__['max_tokens_limit'] = max_tokens_limit
+            return chain
+        except Exception as e:
+            print(f"⚠️ Failed to create OptimizedConversationalRetrievalChain: {e}")
+            print("🔄 Falling back to standard ConversationalRetrievalChain")
+            try:
+                # Fallback to standard chain without optimizations
+                from langchain.chains import ConversationalRetrievalChain
+                return ConversationalRetrievalChain.from_llm(**kwargs)
+            except Exception as e2:
+                print(f"⚠️ Failed to create standard ConversationalRetrievalChain: {e2}")
+                print("🔄 Falling back to SimpleDirectQAChain (bypasses LLMChain validation)")
+                # Final fallback to simple direct QA chain
+                return SimpleDirectQAChain(**kwargs)

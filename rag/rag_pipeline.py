@@ -102,7 +102,7 @@ class RAGPipeline:
     def _chunk_documents_with_validation(self, documents):
         """Chunk documents with validation - optimized for contract analysis."""
         try:
-            chunk_documents = ChunkDocuments()
+            chunk_documents = ChunkDocuments(documents)
             # Increased chunk size for better context preservation
             # 1200 chars ≈ 300 tokens, allowing better semantic understanding
             chunks = chunk_documents.chunk_documents(chunk_size=1200, chunk_overlap=200)
