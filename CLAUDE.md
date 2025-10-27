@@ -31,7 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-High-Precision Contract Advisor RAG is an AI-powered contract analysis system using Retrieval-Augmented Generation (RAG) technology. Upload contracts and ask questions to get intelligent responses based on the actual document content.
+High-Precision Contract Advisor RAG is an AI-powered contract analysis system using Retrieval-Augmented Generation (RAG) technology. Upload contracts and ask questions to get intelligent responses based on the actual document content. The system has evolved from a basic RAG implementation to a comprehensive contract analysis platform with advanced features including document analytics, multi-tab interface, session management, and systematic evaluation capabilities.
 
 ## Architecture
 
@@ -41,22 +41,24 @@ High-Precision Contract Advisor RAG is an AI-powered contract analysis system us
 - `backend/server.py` (61KB) - Flask API server with 3 endpoints, session management, rate limiting
 - `backend/config.py` - Environment-based configuration (Development/Production/Testing)
 - `backend/session_manager.py` - Global state management for conversation sessions
+- `backend/flask_session/` - Flask session handling for improved state management across user sessions
 
 **RAG Pipeline (LangChain Orchestration)**
 - `rag/rag_pipeline.py` - Main orchestrator with retry logic (3 attempts, exponential backoff)
-- `rag/data_loader.py` - Parses PDF, DOCX, TXT with PyPDF, python-docx, pdfplumber
+- `rag/data_loader.py` - Parses PDF, DOCX, TXT with PyPDF, python-docx, pdfplumber; includes image processing for multimodal inputs
 - `rag/chunk_documents.py` - Text splitting into 800-char chunks with 100-char overlap
 - `rag/embedding.py` - Vector embeddings via HuggingFace `sentence-transformers/all-MiniLM-L6-v2`
 - `rag/retriever.py` - ChromaDB vector store with persistent caching (1000+ embeddings)
 - `rag/chat_model.py` - Groq LLM integration with 300s timeout (primary) + Ollama fallback (deprecated)
 - `rag/conversation_chain.py` - LangChain retrieval QA chain with prompt templating
+- `rag/craft_prompt.py` - Structured prompt templates with specialized legal contract analysis instructions
 - **Primary LLM**: Groq cloud inference (llama-3.3-70b-versatile) - fast, high-quality responses
 - **Fallback LLM**: Ollama local models (deprecated) - only used if Groq unavailable
 
 **Frontend (Next.js + React)**
-- `frontend/src/pages/index.tsx` - Main layout with Upload and Chat components
-- 30+ React components (TypeScript, strict mode): DocumentManager, Chat, MobileChat, EnhancedErrorDisplay, ContextualHelpSystem, KeyboardShortcutsHint, QuickActionsMenu, OnboardingTour, DocumentAnalyticsDashboard, etc.
-- Advanced features: Mobile-responsive chat, Keyboard shortcuts (Ctrl+K, Ctrl+/), Contextual help system, Onboarding tours, Document analytics, Enhanced error handling
+- `frontend/src/pages/index.tsx` - Comprehensive multi-tab interface (Upload, Documents, Analytics, Insights) with collapsible sidebar
+- 40+ React components (TypeScript, strict mode): EnhancedDocumentManager, DocumentAnalyticsDashboard, EnhancedDocumentInsights, MobileChat, ContextualHelpSystem, KeyboardShortcutsHint, QuickActionsMenu, OnboardingTour, etc.
+- Advanced features: Multi-tab document management, Collapsible sidebar (Ctrl+B), Mobile-responsive chat, Comprehensive keyboard shortcuts (Ctrl+K, Ctrl+/), Contextual help system, Onboarding tours, Document analytics with risk/compliance scoring, Enhanced error handling
 - Tailwind CSS styling with Ionic React (v7.8.0) and Framer Motion animations
 - Axios HTTP client for API calls with comprehensive error handling
 - Pre-commit hooks with Husky and lint-staged for code quality enforcement
@@ -356,6 +358,7 @@ cd frontend && npm run fix-all
 ### Keyboard Shortcuts
 - **Ctrl+K**: Open Quick Actions Menu
 - **Ctrl+/**: Show Contextual Help & Keyboard Shortcuts
+- **Ctrl+B**: Toggle Collapsible Sidebar
 - **Escape**: Close modals, dropdowns, and overlays
 - **Enter**: Submit forms and chat messages
 - **Tab/Shift+Tab**: Navigate between interactive elements
@@ -373,8 +376,9 @@ cd frontend && npm run fix-all
 - **Error Recovery**: User-friendly error messages with recovery options
 
 ### Document Analytics
-- **Document Insights**: Automatic document analysis and summaries
-- **Analytics Dashboard**: Usage statistics and document metrics
+- **Document Insights**: Automatic document analysis with risk scores, compliance scores, and clause analysis
+- **Analytics Dashboard**: Comprehensive usage statistics, document metrics, and performance visualizations
+- **Multi-tab Interface**: Organized workspace with Upload, Documents, Analytics, and Insights tabs
 - **Performance Monitoring**: Query response times and system health
 - **Enhanced Error Display**: Detailed error information with debugging help
 
@@ -459,16 +463,18 @@ project/
 │   ├── server.py        # Main Flask app with ConfigValidator
 │   ├── config.py        # Environment configuration
 │   ├── session_manager.py
+│   ├── flask_session/   # Flask session storage
 │   ├── test_*.py        # Unit tests (server, RAG pipeline, evaluation)
 │   └── uploads/         # Uploaded contracts (runtime)
 ├── rag/                 # LangChain RAG pipeline
 │   ├── rag_pipeline.py  # Main orchestrator with retry logic
-│   ├── data_loader.py   # PDF, DOCX, TXT parsing
+│   ├── data_loader.py   # PDF, DOCX, TXT parsing + image processing
 │   ├── chunk_documents.py # 800-char chunks with 100-char overlap
 │   ├── embedding.py     # HuggingFace sentence-transformers
 │   ├── retriever.py     # ChromaDB vector store
 │   ├── chat_model.py    # Groq LLM integration
 │   ├── conversation_chain.py # LangChain QA chain
+│   ├── craft_prompt.py  # Legal contract analysis prompt templates
 │   ├── evaluation/      # RAG evaluation framework
 │   │   ├── rag_evaluator.py    # Main evaluation orchestrator
 │   │   └── test_datasets.py    # Contract test datasets
@@ -483,7 +489,12 @@ project/
 │   └── __init__.py
 ├── frontend/            # Next.js React app
 │   ├── src/pages/       # Page routes
-│   ├── src/components/  # React components (Upload, Chat, etc.)
+│   │   └── index.tsx    # Multi-tab interface with sidebar
+│   ├── src/components/  # React components (40+ components)
+│   │   ├── EnhancedDocumentManager.tsx
+│   │   ├── DocumentAnalyticsDashboard.tsx
+│   │   ├── EnhancedDocumentInsights.tsx
+│   │   └── ...
 │   ├── __tests__/       # Jest tests
 │   ├── package.json     # NPM scripts and dependencies
 │   └── public/          # Static assets
