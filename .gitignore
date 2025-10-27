@@ -1,0 +1,11 @@
+*node_modules
+.env
+.env.example
+venv
+data
+.venv
+.venv-backup-20251027-214658
+/.venv/
+/.venv-backup-20251027-214658/
+cache
+/backend/.venv/

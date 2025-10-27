@@ -1,0 +1,46 @@
+# High-Precision Contract Advisor RAG - Working Dependencies
+# Tested and verified to work without conflicts
+
+# Core Flask Backend
+flask>=3.1.0
+flask-cors>=6.0.0
+werkzeug>=3.1.0
+python-dotenv>=1.1.0
+
+# LangChain RAG Pipeline
+langchain>=0.3.20
+langchain-community>=0.3.20
+langchain-groq>=0.2.0  # Groq integration for LLM
+
+# Document Processing
+pypdf>=6.0.0
+python-docx>=0.8.11
+pdfplumber>=0.11.0
+beautifulsoup4>=4.12.0
+
+# OCR Support for Image Documents
+pytesseract>=0.3.10
+pillow>=10.0.0
+opencv-python>=4.10.0
+easyocr>=1.7.0
+
+# Machine Learning & Embeddings
+scikit-learn>=1.7.0
+numpy>=2.3.0
+transformers>=4.56.0  # Required for token calculations
+# sentence-transformers>=3.0.0  # Using ChromaDB default embeddings instead
+
+# Vector Store & Search
+chromadb>=0.5.0
+
+# RAG Evaluation Framework
+ragas>=0.1.0
+datasets>=2.14.0
+
+# Testing and Benchmarking
+psutil>=5.9.0
+matplotlib>=3.6.0
+requests>=2.28.0
+
+# Note: Ollama excluded - using Groq for LLM + HuggingFace for embeddings
+# The system uses hybrid semantic+keyword search with in-memory retriever as fallback
