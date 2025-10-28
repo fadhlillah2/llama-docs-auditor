@@ -19,11 +19,22 @@ if rag_path not in sys.path:
     sys.path.insert(0, rag_path)
 
 try:
-    from rag_pipeline import RAGPipeline
+    # Try to import enhanced RAG pipeline first
+    from rag.enhanced_rag_pipeline import EnhancedRAGPipeline
+    RAGPipeline = EnhancedRAGPipeline  # Alias for compatibility
+    print("✅ Session Manager using Enhanced RAG Pipeline")
+    ENHANCED_RAG_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️ Warning: Could not import RAGPipeline: {e}")
-    # Fallback - will be handled later
-    RAGPipeline = None
+    print(f"⚠️ Enhanced RAG Pipeline not available in session manager: {e}")
+    try:
+        from rag_pipeline import RAGPipeline
+        ENHANCED_RAG_AVAILABLE = False
+        print("✅ Session Manager using original RAG Pipeline")
+    except ImportError as e2:
+        print(f"⚠️ Warning: Could not import any RAGPipeline: {e2}")
+        # Fallback - will be handled later
+        RAGPipeline = None
+        ENHANCED_RAG_AVAILABLE = False
 
 @dataclass
 class SessionData:

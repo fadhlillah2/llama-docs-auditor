@@ -22,7 +22,18 @@ from session_manager import session_manager
 # Import batch processing
 import sys
 sys.path.append('../rag')
-from rag_pipeline import RAGPipeline, BatchRAGPipeline
+
+# Try to import enhanced RAG pipeline first
+try:
+    from rag.enhanced_rag_pipeline import EnhancedRAGPipeline, create_enhanced_rag_pipeline
+    RAGPipeline = EnhancedRAGPipeline  # Alias for compatibility
+    print("✅ Using Enhanced RAG Pipeline with optimizations")
+    ENHANCED_RAG_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️  Enhanced RAG Pipeline not available: {e}")
+    print("🔄 Falling back to original RAG Pipeline")
+    from rag_pipeline import RAGPipeline, BatchRAGPipeline
+    ENHANCED_RAG_AVAILABLE = False
 
 # Load environment variables first
 load_dotenv(find_dotenv())
@@ -1999,6 +2010,67 @@ def get_configuration():
     except Exception as e:
         return jsonify({
             'error': f"Failed to get configuration: {str(e)}"
+        }), 500
+
+
+@app.route('/performance/stats', methods=['GET'])
+@require_auth()
+@rate_limit('general')
+def get_performance_stats():
+    """Get performance statistics for the enhanced RAG pipeline."""
+    try:
+        session_id = session.get('session_id')
+        if not session_id:
+            return jsonify({'error': 'No active session'}), 400
+
+        session_data = session_manager.get_session(session_id)
+        if not session_data:
+            return jsonify({'error': 'Session not found'}), 404
+
+        # Check if enhanced RAG pipeline is available
+        if 'ENHANCED_RAG_AVAILABLE' in globals() and ENHANCED_RAG_AVAILABLE:
+            # Enhanced RAG pipeline stats
+            stats = {
+                'enhanced_rag_enabled': True,
+                'session_info': {
+                    'session_id': session_id,
+                    'file_path': session_data.file_path,
+                    'created_at': session_data.created_at.isoformat(),
+                    'query_count': session_data.query_count,
+                    'last_accessed': session_data.last_accessed.isoformat()
+                }
+            }
+
+            # Get performance stats from session if available
+            if session_data.performance_stats:
+                stats.update(session_data.performance_stats)
+
+            # Get system performance info
+            import psutil
+            stats['system_performance'] = {
+                'memory_usage_mb': psutil.Process().memory_info().rss / 1024 / 1024,
+                'cpu_percent': psutil.cpu_percent(interval=1)
+            }
+
+            return jsonify(stats)
+
+        else:
+            # Original RAG pipeline - basic stats
+            return jsonify({
+                'enhanced_rag_enabled': False,
+                'session_info': {
+                    'session_id': session_id,
+                    'file_path': session_data.file_path,
+                    'created_at': session_data.created_at.isoformat(),
+                    'query_count': session_data.query_count,
+                    'last_accessed': session_data.last_accessed.isoformat()
+                },
+                'message': 'Enhanced RAG pipeline not available'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'error': f"Failed to get performance stats: {str(e)}"
         }), 500
 
 
