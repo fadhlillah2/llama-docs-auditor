@@ -73,7 +73,7 @@ Ditandatangani pada: Jakarta, 15 Januari 2025
             y_position += line_height // 2
 
     # Save the image
-    output_dir = "data/uploads_test"
+    output_dir = "../../data/uploads_test"
     os.makedirs(output_dir, exist_ok=True)
 
     image_path = os.path.join(output_dir, "sample_indonesian_contract.png")
@@ -109,7 +109,7 @@ def create_simple_test_image():
         y_position += 35
 
     # Save the image
-    output_dir = "data/uploads_test"
+    output_dir = "../../data/uploads_test"
     os.makedirs(output_dir, exist_ok=True)
 
     image_path = os.path.join(output_dir, "simple_test.png")

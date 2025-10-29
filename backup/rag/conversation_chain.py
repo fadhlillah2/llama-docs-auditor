@@ -1,7 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
-from typing import List, Dict, Any
+from typing import List
+
 
 class ConversationChain:
     def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
@@ -82,7 +83,7 @@ class ConversationChain:
             import sys
             import os
             sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-            from test_simple_direct_qa import TestSimpleDirectQAChain
+            from backend.tests.test_simple_direct_qa import TestSimpleDirectQAChain
 
             # Create a working QA chain
             return TestSimpleDirectQAChain(llm=chat_model, retriever=retriever, conversation_chain=self)

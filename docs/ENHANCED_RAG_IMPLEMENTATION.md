@@ -99,12 +99,13 @@ print(f"Processing time: {stats['pipeline_stats']['total_processing_time']:.2f}s
 ```
 
 ### **Advanced Configuration:**
+
 ```python
 from rag.enhanced_rag_pipeline import EnhancedRAGPipeline
 
 pipeline = EnhancedRAGPipeline(
     uploaded_file="contract.pdf",
-    vector_db_path="data/chroma_db",
+    vector_db_path="../data/chroma_db",
     use_optimized=True  # Force enhanced mode
 )
 
