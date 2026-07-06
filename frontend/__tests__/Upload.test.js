@@ -21,16 +21,22 @@ describe('Upload Component', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     fetch.mockResolvedValue({
-      json: () => Promise.resolve({ message: 'File uploaded successfully' })
+      ok: true,
+      json: () => Promise.resolve({
+        status: 'success',
+        session_id: 'test-session-id-123',
+        message: 'File uploaded successfully'
+      })
     })
   })
 
   test('renders upload component', () => {
     render(<Upload />)
-    
-    // Check for main elements
-    expect(screen.getByText(/Upload your file here/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Submit/i })).toBeInTheDocument()
+
+    // Check for main elements (component shows a heading and a submit button
+    // labeled via aria-label, not literal "Submit" text)
+    expect(screen.getByText(/Upload Your Documents/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Upload and analyze documents/i })).toBeInTheDocument()
   })
 
   test('displays file input', () => {
@@ -67,12 +73,20 @@ describe('Upload Component', () => {
 
   test('calls fetch with correct URL when form is submitted', async () => {
     render(<Upload />)
-    
+
     const form = document.querySelector('form')
-    
+    const fileInput = document.querySelector('input[type="file"]')
+
+    // A file must be selected first - submitting with nothing selected
+    // just shows a "select files first" warning and never calls fetch.
+    const file = new File(['test content'], 'test.pdf', { type: 'application/pdf' })
+    if (fileInput) {
+      fireEvent.change(fileInput, { target: { files: [file] } })
+    }
+
     if (form) {
       fireEvent.submit(form)
-      
+
       await waitFor(() => {
         expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:8081/upload_file', {
           method: 'POST',
@@ -85,21 +99,32 @@ describe('Upload Component', () => {
   test('shows SweetAlert toast when form is submitted', async () => {
     const swal = require('sweetalert2')
     render(<Upload />)
-    
+
     const form = document.querySelector('form')
-    
+    const fileInput = document.querySelector('input[type="file"]')
+
+    const file = new File(['test content'], 'test.pdf', { type: 'application/pdf' })
+    if (fileInput) {
+      fireEvent.change(fileInput, { target: { files: [file] } })
+    }
+
     if (form) {
       fireEvent.submit(form)
-      
-      expect(swal.fire).toHaveBeenCalledWith({
-        title: "File loading...",
-        icon: "success",
-        toast: true,
-        timer: 6000,
-        position: 'top-right',
-        timerProgressBar: true,
-        showConfirmButton: false,
-      })
+
+      // Success toast is fired only after the (mocked) upload response
+      // resolves and a short simulated-processing delay elapses.
+      await waitFor(() => {
+        expect(swal.fire).toHaveBeenCalledWith({
+          title: "File uploaded successfully!",
+          text: "You can now chat with your document using the chat interface.",
+          icon: "success",
+          toast: true,
+          timer: 5000,
+          position: 'top-right',
+          timerProgressBar: true,
+          showConfirmButton: false,
+        })
+      }, { timeout: 3000 })
     }
   })
 })

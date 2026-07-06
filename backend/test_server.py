@@ -62,63 +62,65 @@ class TestFlaskServer(unittest.TestCase):
         """Test upload endpoint with invalid file extension"""
         data = {'file': (io.BytesIO(b'invalid content'), 'test.invalid')}
         response = self.app.post('/upload_file', data=data, content_type='multipart/form-data')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         response_data = json.loads(response.data)
-        self.assertEqual(response_data['message'], 'File type is not allowed')
-    
-    @patch('server.RAGPipeline')
-    def test_upload_valid_file(self, mock_rag_pipeline):
+        self.assertEqual(response_data['message'], 'File type is not allowed. Supported: PDF, DOC, DOCX, TXT')
+
+    @patch('server.session_manager.initialize_qa_chain')
+    def test_upload_valid_file(self, mock_initialize_qa_chain):
         """Test uploading a valid file"""
-        # Mock the RAG pipeline
-        mock_pipeline_instance = MagicMock()
-        mock_rag_pipeline.return_value = mock_pipeline_instance
-        mock_pipeline_instance.create_conversation_chain.return_value = MagicMock()
-        
+        # Prevent the real (session-based) background QA chain init from
+        # running - it would otherwise spin up the real RAG pipeline
+        # (embeddings, ChromaDB) on a background thread.
+        mock_initialize_qa_chain.return_value = True
+
         # Create a test file
         data = {'file': (io.BytesIO(b'This is a test contract content'), 'test.txt')}
-        
+
         response = self.app.post('/upload_file', data=data, content_type='multipart/form-data')
-        
-        self.assertEqual(response.status_code, 200)
+
+        # Upload creates a new resource (session) -> 201 Created
+        self.assertEqual(response.status_code, 201)
         response_data = json.loads(response.data)
-        self.assertEqual(response_data['message'], 'File uploaded successfully')
-    
-    def test_ask_ai_no_qa_chain(self):
+        self.assertEqual(response_data['message'], 'File uploaded successfully. Processing in background.')
+        self.assertEqual(response_data['status'], 'success')
+
+    @patch('server.session_manager.get_active_session_ids')
+    def test_ask_ai_no_qa_chain(self, mock_get_active_session_ids):
         """Test asking AI when no file has been uploaded"""
+        # No sessions exist yet for this client
+        mock_get_active_session_ids.return_value = []
+
         data = {'prompt': 'What is this about?'}
-        response = self.app.post('/ask_ai', 
+        response = self.app.post('/ask_ai',
                                 json=data,
                                 content_type='application/json')
-        
-        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.status_code, 400)
         response_data = json.loads(response.data)
         self.assertIn('error', response_data)
-    
-    def test_ask_ai_with_qa_chain(self):
+        self.assertEqual(response_data['status'], 'no_session')
+
+    @patch('server.session_manager.get_qa_chain')
+    @patch('server.session_manager.get_active_session_ids')
+    def test_ask_ai_with_qa_chain(self, mock_get_active_session_ids, mock_get_qa_chain):
         """Test asking AI when QA chain exists"""
-        # Mock qa_chain globally
-        import server
-        original_qa_chain = getattr(server, 'qa_chain', None)
-        
-        # Create mock qa_chain
+        # QA chains now live on the session (SessionManager), not as a
+        # module-level global - simulate an active session with a ready
+        # QA chain via the session manager instead.
         mock_qa_chain = MagicMock()
         mock_qa_chain.invoke.return_value = {'answer': 'This is a test response'}
-        server.qa_chain = mock_qa_chain
-        
+        mock_get_active_session_ids.return_value = ['fake-session-id']
+        mock_get_qa_chain.return_value = mock_qa_chain
+
         data = {'prompt': 'What is this about?'}
-        response = self.app.post('/ask_ai', 
+        response = self.app.post('/ask_ai',
                                 json=data,
                                 content_type='application/json')
-        
+
         self.assertEqual(response.status_code, 200)
         response_data = json.loads(response.data)
         self.assertEqual(response_data['result'], 'This is a test response')
-        
-        # Restore original qa_chain
-        if original_qa_chain is not None:
-            server.qa_chain = original_qa_chain
-        elif hasattr(server, 'qa_chain'):
-            delattr(server, 'qa_chain')
 
 if __name__ == '__main__':
     unittest.main()
