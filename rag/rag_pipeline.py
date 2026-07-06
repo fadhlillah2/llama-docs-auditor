@@ -9,10 +9,9 @@ from chat_model import ChatModel
 from conversation_chain import ConversationChain
 from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+load_dotenv(find_dotenv())
 # Use Groq model by default, can be overridden by environment variable
 GROQ_MODEL_NAME = os.getenv('GROQ_MODEL_NAME', 'llama-3.3-70b-versatile')
-load_dotenv(find_dotenv())
 
 class RAGPipeline:
     def __init__(self,

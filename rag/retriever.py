@@ -3,7 +3,7 @@ import time
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import BaseRetriever, Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
-from typing import List, Any, Dict
+from typing import List
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -426,10 +426,6 @@ class SimpleRetriever(BaseRetriever):
         # Calculate new running average
         new_avg = ((current_avg * (total_queries - 1)) + new_time) / total_queries
         self._performance_stats['avg_query_time'] = new_avg
-    
-    def get_performance_stats(self) -> Dict[str, Any]:
-        """Get retriever performance statistics."""
-        return self._performance_stats.copy()
 
 class Retriever:
     def __init__(self, documents, embedding, persist_directory):
@@ -586,19 +582,3 @@ class ChromaDBEnhancedRetriever(BaseRetriever):
         
         new_avg = ((current_avg * (total_queries - 1)) + new_time) / total_queries
         self._performance_stats['avg_query_time'] = new_avg
-    
-    def get_performance_stats(self) -> Dict[str, Any]:
-        """Get combined performance statistics."""
-        stats = self._performance_stats.copy()
-        
-        # Add vector store stats if available
-        if hasattr(self.vector_store_wrapper, 'get_performance_stats'):
-            chromadb_stats = self.vector_store_wrapper.get_performance_stats()
-            stats['chromadb_stats'] = chromadb_stats
-        
-        # Add fallback stats if available  
-        if hasattr(self.fallback_retriever, 'get_performance_stats'):
-            fallback_stats = self.fallback_retriever.get_performance_stats()
-            stats['fallback_stats'] = fallback_stats
-        
-        return stats

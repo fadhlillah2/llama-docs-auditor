@@ -1,5 +1,5 @@
 # High-Precision Contract Advisor RAG - Minimal Requirements
-# Reduced from 313+ packages to 21 essential packages based on docs/CLAUDE.md
+# Reduced from 313+ packages to 21 essential packages based on CLAUDE.md
 
 # Core Flask Web Framework
 Flask==3.0.2

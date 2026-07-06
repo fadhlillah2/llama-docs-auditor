@@ -395,6 +395,13 @@ def search_section_directly(question: str, documents: list) -> Optional[str]:
 
     print(f"🎯 TARGET SECTION: {target_section}")
 
+    # Special-cased sections: same extraction logic, different match/stop patterns
+    special_sections = {
+        'iv.15': {'patterns': ['iv.15', 'iv15'], 'stop': ['iv.16', 'iv.14', 'section iv', 'article']},
+        'iv.14': {'patterns': ['iv.14'], 'stop': ['iv.15', 'iv.13', 'section', 'article']},
+        'iv.13': {'patterns': ['iv.13', 'iv13'], 'stop': ['iv.14', 'iv.12', 'section iv', 'article']},
+    }
+
     # Search through documents for the section
     for doc in documents:
         if hasattr(doc, 'page_content'):
@@ -402,33 +409,23 @@ def search_section_directly(question: str, documents: list) -> Optional[str]:
             content_original = doc.page_content
 
             # Check if this document contains the target section
-            if target_section == 'iv.15':
-                # Look for Section IV.15 with more flexible pattern matching
-                section_patterns = ['section iv.15', 'iv.15', 'section iv15', 'iv.15', 'iv15']
-                found_section = False
+            if target_section in special_sections:
+                cfg = special_sections[target_section]
+                if any(pattern in content for pattern in cfg['patterns']):
+                    print(f"✅ FOUND Section {target_section.upper()} in document!")
 
-                for pattern in section_patterns:
-                    if pattern in content:
-                        found_section = True
-                        break
-
-                if found_section:
-                    # Found Section IV.15, extract relevant context
-                    print(f"✅ FOUND Section IV.15 in document!")
-
-                    # Find the exact location and extract context
                     lines = content_original.split('\n')
                     section_lines = []
                     capturing = False
 
                     for i, line in enumerate(lines):
                         line_lower = line.lower()
-                        if any(pattern in line_lower for pattern in section_patterns):
+                        if any(pattern in line_lower for pattern in cfg['patterns']):
                             capturing = True
                             section_lines.append(line)
                         elif capturing and line.strip() and not line.startswith(' '):
                             # Stop when we hit the next section or major heading
-                            if any(x in line_lower for x in ['iv.16', 'iv.14', 'section iv', 'article']):
+                            if any(x in line_lower for x in cfg['stop']):
                                 break
                             section_lines.append(line)
                         elif capturing:
@@ -436,64 +433,8 @@ def search_section_directly(question: str, documents: list) -> Optional[str]:
 
                     if section_lines:
                         context = '\n'.join(section_lines[:10])  # Limit to first 10 lines
-                        return f"Yes, I found Section IV.15 in the document:\n\n{context}\n\nThis is the complete information available about Section IV.15 in the uploaded document."
-
-            elif target_section == 'iv.14' and ('iv.14' in content or 'section iv.14' in content):
-                # Similar logic for IV.14
-                lines = content_original.split('\n')
-                section_lines = []
-                capturing = False
-
-                for i, line in enumerate(lines):
-                    if 'iv.14' in line.lower() or 'section iv.14' in line.lower():
-                        capturing = True
-                        section_lines.append(line)
-                    elif capturing and line.strip() and not line.startswith(' '):
-                        if any(x in line.lower() for x in ['iv.15', 'iv.13', 'section', 'article']):
-                            break
-                        section_lines.append(line)
-                    elif capturing:
-                        section_lines.append(line)
-
-                if section_lines:
-                    context = '\n'.join(section_lines[:10])
-                    return f"Yes, I found Section IV.14 in the document:\n\n{context}\n\nThis is the complete information available about Section IV.14 in the uploaded document."
-
-            elif target_section == 'iv.13':
-                # Look for Section IV.13 with more flexible pattern matching
-                section_patterns = ['section iv.13', 'iv.13', 'section iv13', 'iv.13', 'iv13']
-                found_section = False
-
-                for pattern in section_patterns:
-                    if pattern in content:
-                        found_section = True
-                        break
-
-                if found_section:
-                    # Found Section IV.13, extract relevant context
-                    print(f"✅ FOUND Section IV.13 in document!")
-
-                    # Find the exact location and extract context
-                    lines = content_original.split('\n')
-                    section_lines = []
-                    capturing = False
-
-                    for i, line in enumerate(lines):
-                        line_lower = line.lower()
-                        if any(pattern in line_lower for pattern in section_patterns):
-                            capturing = True
-                            section_lines.append(line)
-                        elif capturing and line.strip() and not line.startswith(' '):
-                            # Stop when we hit the next section or major heading
-                            if any(x in line_lower for x in ['iv.14', 'iv.12', 'section iv', 'article']):
-                                break
-                            section_lines.append(line)
-                        elif capturing:
-                            section_lines.append(line)
-
-                    if section_lines:
-                        context = '\n'.join(section_lines[:10])  # Limit to first 10 lines
-                        return f"Yes, I found Section IV.13 in the document:\n\n{context}\n\nThis is the complete information available about Section IV.13 in the uploaded document."
+                        label = target_section.upper()
+                        return f"Yes, I found Section {label} in the document:\n\n{context}\n\nThis is the complete information available about Section {label} in the uploaded document."
 
             elif target_section in content:
                 # Generic section search
@@ -1644,16 +1585,6 @@ def upload_batch_files():
             # Generate session ID
             session_id = f"batch_session_{secrets.token_urlsafe(16)}"
 
-            # Store session data
-            session[session_id] = {
-                'qa_chain': result['qa_chain'],
-                'file_info': file_info,
-                'upload_time': datetime.now(),
-                'batch_results': result.get('processing_results', {}),
-                'document_count': result.get('document_count', 0),
-                'failed_files': result.get('failed_files', [])
-            }
-
             session_manager.create_session(session_id, result['qa_chain'], {
                 'file_info': file_info,
                 'processing_results': result.get('processing_results', {}),
@@ -2002,80 +1933,6 @@ def get_configuration():
         }), 500
 
 
-@app.route('/config/reload', methods=['POST'])
-@require_auth()
-@rate_limit('general')
-def reload_configuration():
-    """Reload configuration without restarting (development only)."""
-    try:
-        if ENVIRONMENT == 'production':
-            return jsonify({
-                'error': 'Configuration reload not allowed in production',
-                'message': 'Restart the server to apply configuration changes in production'
-            }), 403
-        
-        # Reload environment variables
-        from dotenv import load_dotenv
-        load_dotenv(override=True)
-        
-        # Re-initialize components that can be hot-reloaded
-        reloaded_components = []
-        
-        # Reload feature flags
-        global feature_flags
-        old_flags = feature_flags.get_all()
-        feature_flags = FeatureFlags()
-        new_flags = feature_flags.get_all()
-        
-        if old_flags != new_flags:
-            reloaded_components.append('feature_flags')
-        
-        # Reload rate limiter settings
-        global rate_limiter
-        old_limits = rate_limiter.limits
-        rate_limiter = RateLimiter()
-        
-        if old_limits != rate_limiter.limits:
-            reloaded_components.append('rate_limiter')
-        
-        # Reload auth system
-        global auth_system
-        old_api_keys = len(auth_system.api_keys) if hasattr(auth_system, 'api_keys') else 0
-        auth_system = BasicAuth()
-        new_api_keys = len(auth_system.api_keys) if hasattr(auth_system, 'api_keys') else 0
-        
-        if old_api_keys != new_api_keys:
-            reloaded_components.append('authentication')
-        
-        # Validate new configuration
-        global config_validator, validated_config
-        config_validator = ConfigValidator()
-        new_validated_config = config_validator.validate_all()
-        
-        if new_validated_config is None:
-            return jsonify({
-                'error': 'Configuration validation failed after reload',
-                'validation_errors': config_validator.errors,
-                'message': 'Configuration not applied due to validation errors'
-            }), 400
-        
-        validated_config = new_validated_config
-        reloaded_components.append('configuration_validation')
-        
-        return jsonify({
-            'message': 'Configuration reloaded successfully',
-            'reloaded_components': reloaded_components,
-            'timestamp': datetime.now().isoformat(),
-            'warnings': config_validator.warnings if config_validator.warnings else None
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'error': f"Failed to reload configuration: {str(e)}",
-            'message': 'Configuration may be in an inconsistent state. Consider restarting the server.'
-        }), 500
-
-
 if __name__ == '__main__':
     print("🚀 Starting Flask server with session management...")
     print(f"🔧 Environment: {ENVIRONMENT}")
@@ -2092,8 +1949,6 @@ if __name__ == '__main__':
     if ENVIRONMENT == 'development':
         print("  POST /features/<name> - Toggle feature flags (development only)")
     print("  GET /config - Get configuration summary (auth required)")
-    if ENVIRONMENT == 'development':
-        print("  POST /config/reload - Reload configuration (development only, auth required)")
     print("🔒 Security features: CORS, Rate limiting, Input sanitization, File validation")
     
     # Configure HTTPS for production using validated config

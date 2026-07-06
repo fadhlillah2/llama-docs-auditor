@@ -1,5 +1,29 @@
-*node_modules
+# dependencies / environments
+node_modules/
+.venv/
+venv/
 .env
-.env.example
-venv
-data
+
+# IDE / OS
+.idea/
+.DS_Store
+
+# python artifacts
+__pycache__/
+*.pyc
+
+# runtime data (regenerated)
+data/
+cache/
+logs/
+evaluation_results/
+backend/uploads/
+rag/uploads/
+backend/flask_session/
+flask_session/
+cookies.txt
+
+# frontend build output
+frontend/.next/
+frontend/out/
+frontend/coverage/

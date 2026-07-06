@@ -14,12 +14,11 @@ inspire with contextual depth and factual precision.
 The project requires the following libraries and frameworks:
 - Langchain: a leading LLM application framework
 - OpenAI API: for embedding and retrieval
-- RAGAS: a RAG evaluation framework
 
 ## Usage
 To run the project, follow the following steps
 - Clone the repo: git clone: https://github.com/eyaya/High-Precision-Contract-Advisor-RAG
-- Install the dependencies: pip install -r requirements.txt
+- Install the dependencies: pip install -r requirements-working.txt
 - To run the backend: cd backend and python3 server.py
 - To run the fronted: cd frontend and npm run dev
     

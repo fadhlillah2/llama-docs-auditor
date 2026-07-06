@@ -31,21 +31,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-High-Precision Contract Advisor RAG is an AI-powered contract analysis system using Retrieval-Augmented Generation (RAG) technology. Upload contracts and ask questions to get intelligent responses based on the actual document content. The system has evolved from a basic RAG implementation to a comprehensive contract analysis platform with advanced features including document analytics, multi-tab interface, session management, and systematic evaluation capabilities.
+High-Precision Contract Advisor RAG is an AI-powered contract analysis system using Retrieval-Augmented Generation (RAG) technology. Upload contracts and ask questions to get intelligent responses based on the actual document content. The system has evolved from a basic RAG implementation to a comprehensive contract analysis platform with advanced features including document analytics, multi-tab interface, and session management.
 
 ## Architecture
 
 ### Three-Tier Stack
 
 **Backend (Flask + Python)**
-- `backend/server.py` (61KB) - Flask API server with 3 endpoints, session management, rate limiting
-- `backend/config.py` - Environment-based configuration (Development/Production/Testing)
+- `backend/server.py` (61KB) - Flask API server with 3 endpoints, session management, rate limiting, inline `ConfigValidator` for environment-based configuration
 - `backend/session_manager.py` - Global state management for conversation sessions
 - `backend/flask_session/` - Flask session handling for improved state management across user sessions
 
 **RAG Pipeline (LangChain Orchestration)**
 - `rag/rag_pipeline.py` - Main orchestrator with retry logic (3 attempts, exponential backoff)
-- `rag/data_loader.py` - Parses PDF, DOCX, TXT with PyPDF, python-docx, pdfplumber; includes image processing for multimodal inputs
+- `rag/data_loader.py` - Parses PDF, DOCX, TXT with PyPDF, python-docx; includes image processing for multimodal inputs
 - `rag/chunk_documents.py` - Text splitting into 800-char chunks with 100-char overlap
 - `rag/embedding.py` - Vector embeddings via HuggingFace `sentence-transformers/all-MiniLM-L6-v2`
 - `rag/retriever.py` - ChromaDB vector store with persistent caching (1000+ embeddings)
@@ -57,7 +56,7 @@ High-Precision Contract Advisor RAG is an AI-powered contract analysis system us
 
 **Frontend (Next.js + React)**
 - `frontend/src/pages/index.tsx` - Comprehensive multi-tab interface (Upload, Documents, Analytics, Insights) with collapsible sidebar
-- 40+ React components (TypeScript, strict mode): EnhancedDocumentManager, DocumentAnalyticsDashboard, EnhancedDocumentInsights, MobileChat, ContextualHelpSystem, KeyboardShortcutsHint, QuickActionsMenu, OnboardingTour, etc.
+- 20+ React components (TypeScript, strict mode): DocumentManager, DocumentAnalyticsDashboard, DocumentInsights, MobileChat, ContextualHelpSystem, KeyboardShortcutsHint, QuickActionsMenu, OnboardingTour, etc.
 - Advanced features: Multi-tab document management, Collapsible sidebar (Ctrl+B), Mobile-responsive chat, Comprehensive keyboard shortcuts (Ctrl+K, Ctrl+/), Contextual help system, Onboarding tours, Document analytics with risk/compliance scoring, Enhanced error handling
 - Tailwind CSS styling with Ionic React (v7.8.0) and Framer Motion animations
 - Axios HTTP client for API calls with comprehensive error handling
@@ -108,8 +107,6 @@ cd backend && python3 server.py
 cd backend && python3 -m unittest discover -v          # All tests
 python3 -m unittest backend.test_server -v             # Server tests
 python3 -m unittest backend.test_rag_pipeline -v       # RAG pipeline tests
-python3 -m unittest backend.test_config -v             # Config tests
-python3 -m unittest backend.test_evaluation -v         # Evaluation framework tests
 
 # Code quality (individual commands)
 black backend rag                                       # Format code
@@ -217,33 +214,12 @@ Content-Type: application/json
 }
 ```
 
-## Testing & Evaluation Framework
-
-### RAG Evaluation System
-The project includes a comprehensive RAG evaluation framework using RAGAS metrics and custom contract-specific evaluations.
-
-**Core Evaluation Components:**
-- `rag/evaluation/rag_evaluator.py` - Main evaluation orchestrator with RAGAS integration
-- `rag/evaluation/test_datasets.py` - Contract-specific test datasets and questions
-- `tests/evaluation/automated_evaluation.py` - Automated evaluation pipeline with trend analysis
-- `tests/performance/benchmark_rag.py` - Performance benchmarking and load testing
-- `backend/test_evaluation.py` - Comprehensive test suite for evaluation framework
-- `evaluation_config.json` - Configurable evaluation settings and parameters
-
-**Evaluation Metrics:**
-- Faithfulness, Answer Relevancy, Context Recall, Context Precision (RAGAS)
-- Answer Similarity, Custom Contract Metrics
-- Response Time, Throughput, Error Rate
-- Performance trend analysis and historical tracking
-- Benchmark comparisons across different document types and query complexities
+## Testing
 
 ### Backend Test Strategy
 - Unit tests in `backend/test_server.py`, `backend/test_rag_pipeline.py`
-- Integration tests in `backend/test_evaluation.py`
 - Uses unittest framework with mocking for Groq/LLM calls
 - Test environment uses temp directories (/tmp/test_*)
-- Configuration validation testing
-- RAG evaluation framework testing with mock datasets
 
 ### Frontend Test Strategy
 - Jest tests in `frontend/__tests__/Upload.test.js`
@@ -263,58 +239,9 @@ cd frontend && npm run test:coverage
 # Run specific backend tests
 python3 -m unittest backend.test_server -v
 python3 -m unittest backend.test_rag_pipeline -v
-python3 -m unittest backend.test_evaluation -v
-
-# Run evaluation framework tests
-python3 tests/evaluation/test_rag_integration.py -v
-python3 tests/evaluation/automated_evaluation.py -v
 
 # Watch mode for frontend tests
 cd frontend && npm run test:watch
-
-# Performance benchmarking
-python3 tests/performance/benchmark_rag.py data/uploads_test/sample_contract.txt --questions 10
-
-# Automated evaluation pipeline
-python3 tests/evaluation/automated_evaluation.py data/uploads_test/sample_contract.txt --questions 15
-
-# RAG evaluation with custom questions
-python3 -m rag.evaluation.rag_evaluator $(pwd)/data/uploads_test/sample_contract.txt
-
-# Quick evaluation test (3 questions, no RAGAS)
-python3 -c "
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline(
-    'data/uploads_test/sample_contract.txt',
-    test_questions=['What are the payment terms?', 'When can this contract be terminated?']
-)
-evaluator.print_evaluation_summary(result)
-"
-```
-
-### Evaluation Setup & Usage
-
-```bash
-# Setup evaluation framework (one time)
-./scripts/setup_evaluation.sh
-
-# Quick evaluation test
-source .venv/bin/activate
-python3 -m rag.evaluation.rag_evaluator $(pwd)/data/uploads_test/sample_contract.txt
-
-# Custom evaluation with specific questions
-python3 -c "
-import sys, os
-sys.path.append('.')
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline(
-    os.path.abspath('data/uploads_test/sample_contract.txt'),
-    test_questions=['What are the payment terms?', 'When can this contract be terminated?']
-)
-evaluator.print_evaluation_summary(result)
-"
 ```
 
 ## Code Quality Standards
@@ -384,12 +311,9 @@ cd frontend && npm run fix-all
 
 ## Configuration Management
 
-### Environment-Based Config (backend/config.py)
-- **BaseConfig**: Common settings for all environments
-- **DevelopmentConfig**: Debug enabled, localhost CORS, verbose logging
-- **ProductionConfig**: SSL/TLS support, strict CORS, requires FLASK_SECRET_KEY env var
-- **TestingConfig**: Temp storage paths, smaller limits, faster timeouts
-- **ConfigValidator**: Validates environment configuration on startup
+### Environment-Based Config (backend/server.py)
+- **ConfigValidator**: Inline class validating environment configuration on startup (`FLASK_ENV=development|production|testing`)
+- **Production mode**: Requires `FLASK_SECRET_KEY` and `API_KEYS`, enforces strict CORS
 
 ### Key Configuration Constants
 - **Max file upload**: 16MB (configurable via MAX_UPLOAD_SIZE)
@@ -430,8 +354,8 @@ export SERVER_HOST=0.0.0.0
 export SSL_CERT_PATH=/path/to/cert.pem
 export SSL_KEY_PATH=/path/to/key.pem
 
-# Use production requirements
-pip install -r requirements.txt
+# Use tested requirements
+pip install -r requirements-working.txt
 
 # Configure reverse proxy (nginx example)
 # Forward https://yourdomain.com to http://localhost:8081
@@ -442,7 +366,7 @@ pip install -r requirements.txt
 
 | Issue | Solution |
 |-------|----------|
-| **Port conflict (8081)** | Change SERVER_PORT in .env or `backend/config.py` |
+| **Port conflict (8081)** | Change SERVER_PORT in .env or `backend/server.py` |
 | **Groq API key missing** | Add `GROQ_API_KEY=gsk_...` to .env file (REQUIRED) |
 | **Groq API errors** | Check API key validity and rate limits at https://console.groq.com/ |
 | **Groq rate limits** | Monitor usage at https://console.groq.com/ - default 30 requests/min |
@@ -460,11 +384,10 @@ pip install -r requirements.txt
 ```
 project/
 ├── backend/              # Flask API server
-│   ├── server.py        # Main Flask app with ConfigValidator
-│   ├── config.py        # Environment configuration
+│   ├── server.py        # Main Flask app with inline ConfigValidator
 │   ├── session_manager.py
 │   ├── flask_session/   # Flask session storage
-│   ├── test_*.py        # Unit tests (server, RAG pipeline, evaluation)
+│   ├── test_*.py        # Unit tests (server, RAG pipeline)
 │   └── uploads/         # Uploaded contracts (runtime)
 ├── rag/                 # LangChain RAG pipeline
 │   ├── rag_pipeline.py  # Main orchestrator with retry logic
@@ -475,52 +398,33 @@ project/
 │   ├── chat_model.py    # Groq LLM integration
 │   ├── conversation_chain.py # LangChain QA chain
 │   ├── craft_prompt.py  # Legal contract analysis prompt templates
-│   ├── evaluation/      # RAG evaluation framework
-│   │   ├── rag_evaluator.py    # Main evaluation orchestrator
-│   │   └── test_datasets.py    # Contract test datasets
-│   ├── test_*.py        # Integration tests
 │   └── uploads/         # Documents for processing (runtime)
-├── tests/               # Comprehensive test suite
-│   ├── evaluation/      # Evaluation framework tests
-│   │   ├── automated_evaluation.py  # Automated evaluation pipeline
-│   │   └── test_rag_integration.py  # RAG integration tests
-│   ├── performance/     # Performance and benchmarking tests
-│   │   └── benchmark_rag.py         # RAG performance benchmarking
-│   └── __init__.py
 ├── frontend/            # Next.js React app
 │   ├── src/pages/       # Page routes
 │   │   └── index.tsx    # Multi-tab interface with sidebar
-│   ├── src/components/  # React components (40+ components)
-│   │   ├── EnhancedDocumentManager.tsx
+│   ├── src/components/  # React components (20+ components)
+│   │   ├── DocumentManager.tsx
 │   │   ├── DocumentAnalyticsDashboard.tsx
-│   │   ├── EnhancedDocumentInsights.tsx
+│   │   ├── DocumentInsights.tsx
 │   │   └── ...
 │   ├── __tests__/       # Jest tests
 │   ├── package.json     # NPM scripts and dependencies
 │   └── public/          # Static assets
 ├── data/                # Runtime data (created by setup-project.sh)
 │   ├── uploads/         # Contract files
-│   ├── uploads_test/    # Test contract documents
 │   └── chroma_db/       # Vector store
 ├── cache/               # Runtime caches (created on first query)
 │   ├── embeddings/      # HuggingFace embedding cache files
-│   ├── queries/         # Query result cache
-│   └── evaluations/     # Evaluation result cache
-├── evaluation_results/  # Evaluation outputs and reports
-├── logs/                # Application and evaluation logs
-├── scripts/             # Utility scripts
-│   └── setup_evaluation.sh  # Evaluation framework setup
+│   └── queries/         # Query result cache
+├── logs/                # Application logs
 ├── docs/                # Documentation
 │   ├── DIAGRAMS.md      # System diagrams (architecture, ERD, sequence, activity, deployment, state machines)
-│   ├── EVALUATION_USAGE.md   # Evaluation usage guide
 │   └── *.md             # Additional documentation
 ├── setup-project.sh     # One-time setup automation
 ├── run-project.sh       # Start all services
-├── requirements-working.txt # Tested dependencies (Groq + HuggingFace)
-├── requirements.txt         # Standard dependencies
+├── requirements-working.txt # Tested dependencies (Groq + HuggingFace, canonical)
 ├── requirements-dev.txt     # Development dependencies
 ├── requirements.minimal.txt # Minimal dependencies for testing
-├── evaluation_config.json  # Evaluation configuration
 ├── .env.example         # Environment variables template (80+ settings)
 ├── pyproject.toml       # Python code quality standards
 └── CLAUDE.md            # This file
@@ -530,7 +434,7 @@ project/
 
 ### General Debugging
 - **Enable debug mode**: Set `FLASK_ENV=development` (enables stack traces)
-- **Monitor logs**: Backend logs to `logs/app.log` (rotated at 10MB), evaluation logs to `logs/evaluation/`
+- **Monitor logs**: Backend logs to `logs/app.log` (rotated at 10MB)
 - **Test endpoints manually**: Use `curl` or Postman against `http://127.0.0.1:8081`
 - **Frontend debugging**: Browser DevTools + `npm run dev` for hot reload
 
@@ -552,27 +456,7 @@ project/
 - **ChromaDB issues**: Delete `data/chroma_db/` directory and re-upload document
 - **Session issues**: Clear browser cookies or wait 30 minutes for session timeout
 - **Dependency issues**: Use `requirements-working.txt` for tested dependencies
-- **Rate limiting**: Check `backend/config.py` for current rate limit settings
-
-### Evaluation Framework Debugging
-- **Setup issues**: Run `./scripts/setup_evaluation.sh` to ensure proper installation
-- **Import errors**: Ensure virtual environment is activated and dependencies installed:
-  ```bash
-  source .venv/bin/activate
-  pip install ragas datasets psutil matplotlib
-  ```
-- **Evaluation failures**: Check `logs/evaluation/evaluation_pipeline.log` for detailed error traces
-- **RAGAS issues**: Verify RAGAS installation with `python3 -c "import ragas; print(ragas.__version__)"`
-- **Test data missing**: Ensure sample contract exists at `data/uploads_test/sample_contract.txt`
-- **Permission issues**: Check write permissions for `evaluation_results/` and `cache/evaluations/`
-- **Memory issues**: Reduce number of questions in evaluation_config.json for large documents
-- **Timeout issues**: Increase timeout_seconds in evaluation configuration
-
-### Performance Debugging
-- **Benchmarking**: Use `python3 tests/performance/benchmark_rag.py` to identify bottlenecks
-- **Memory usage**: Monitor with `python3 -c "import psutil; print(psutil.virtual_memory())"`
-- **Response time analysis**: Check evaluation results for avg_response_time metrics
-- **Concurrent issues**: Test with `--concurrent` flag in benchmark_rag.py
+- **Rate limiting**: Check `backend/server.py` (`ConfigValidator`) for current rate limit settings
 
 ## Key Development Patterns
 
@@ -607,8 +491,8 @@ project/
 - **File processing**: All file operations use secure_filename() and validate file types/sizes
 
 ### Configuration System
-- **Environment-based config**: Three modes (development/production/testing) with different defaults
-- **Config validation**: Automatic validation on startup with `backend/config.py:ConfigValidator`
+- **Environment-based config**: `FLASK_ENV` selects development/production/testing behavior with different defaults
+- **Config validation**: Automatic validation on startup with inline `backend/server.py:ConfigValidator`
 - **Feature flags**: Enable/disable features like hybrid search, query caching, batch processing
 - **Security**: Production mode requires SSL/TLS, API keys, and strict CORS settings
 
@@ -618,7 +502,7 @@ project/
 3. **Session Management**: Conversation history storage → Context maintenance → Session cleanup
 
 ### Dependencies & Version Management
-- **Python requirements**: Three-tier requirements files (minimal.txt, working.txt, requirements.txt)
+- **Python requirements**: Three-tier requirements files (minimal.txt, working.txt, dev.txt) — `requirements-working.txt` is canonical
 - **Frontend dependencies**: npm with package-lock.json for reproducible builds
 - **Virtual environment**: Required for all Python development (`source .venv/bin/activate`)
 - **Tested configurations**: `requirements-working.txt` contains verified dependency versions

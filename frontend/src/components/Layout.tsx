@@ -1,4 +1,3 @@
- import Home from "./Home";
  function Layout({children}:any) {
     return (
         <>

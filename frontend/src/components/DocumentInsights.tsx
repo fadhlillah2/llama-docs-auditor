@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import DocumentAnalyticsDashboard from './DocumentAnalyticsDashboard';
-import EnhancedDocumentInsights from './EnhancedDocumentInsights';
 
 interface Document {
   id: string;

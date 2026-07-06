@@ -1,9 +1,8 @@
 import os
 import time
 import threading
-from typing import Dict, List
+from typing import Dict
 from langchain_community.vectorstores import Chroma
-from langchain.schema import Document
 import chromadb
 from chromadb.config import Settings
 
@@ -51,20 +50,6 @@ class ChromaDBConnectionPool:
             
             return client
     
-    def close_all(self):
-        """Close all connections in the pool."""
-        with self._lock:
-            for directory, client in self._connections.items():
-                try:
-                    # ChromaDB doesn't have explicit close, but we can clean up references
-                    del client
-                    print(f"✓ ChromaDB connection closed: {directory}")
-                except Exception as e:
-                    print(f"⚠️ Error closing connection {directory}: {e}")
-            
-            self._connections.clear()
-            self._connection_count = 0
-
 
 # Global connection pool instance
 _connection_pool = ChromaDBConnectionPool()
@@ -167,169 +152,6 @@ class VectorStore:
             traceback.print_exc()
             return None
     
-    def add_documents_batch(self, documents: List[Document], batch_size: int = 50):
-        """Add documents in batches for better performance."""
-        if not self._vector_store:
-            print("❌ Vector store not initialized")
-            return False
-        
-        try:
-            print(f"📄 Adding {len(documents)} documents in batches of {batch_size}")
-            
-            # Process in parallel batches for even better performance
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            
-            def add_single_batch(batch_data):
-                batch_idx, batch = batch_data
-                try:
-                    self._vector_store.add_documents(batch)
-                    return batch_idx, len(batch), None
-                except Exception as e:
-                    return batch_idx, 0, str(e)
-            
-            # Prepare batches
-            batches = []
-            for i in range(0, len(documents), batch_size):
-                batch = documents[i:i + batch_size]
-                batches.append((i//batch_size, batch))
-            
-            successful_batches = 0
-            failed_batches = 0
-            total_added = 0
-            
-            # Process batches with limited parallelism to avoid overwhelming ChromaDB
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                future_to_batch = {executor.submit(add_single_batch, batch_data): batch_data[0] 
-                                 for batch_data in batches}
-                
-                for future in as_completed(future_to_batch):
-                    batch_idx, added_count, error = future.result()
-                    
-                    if error:
-                        failed_batches += 1
-                        print(f"❌ Batch {batch_idx + 1} failed: {error}")
-                    else:
-                        successful_batches += 1
-                        total_added += added_count
-                        print(f"✓ Added batch {batch_idx + 1}/{len(batches)} ({added_count} docs)")
-            
-            if failed_batches == 0:
-                print(f"✓ Successfully added all {total_added} documents to ChromaDB")
-                return True
-            else:
-                print(f"⚠️ Added {total_added} documents, {failed_batches} batches failed")
-                return successful_batches > 0
-            
-        except Exception as e:
-            print(f"❌ Failed to add documents to ChromaDB: {e}")
-            return False
-    
-    def batch_similarity_search(self, queries: List[str], k: int = 4, batch_size: int = 10):
-        """Perform batch similarity searches for multiple queries."""
-        if not self._vector_store:
-            print("❌ Vector store not initialized")
-            return {}
-        
-        print(f"🔍 Performing batch search for {len(queries)} queries")
-        batch_start = time.time()
-        
-        try:
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            
-            def search_single_query(query_data):
-                idx, query = query_data
-                try:
-                    results = self._vector_store.similarity_search(query, k=k)
-                    return idx, query, results, None
-                except Exception as e:
-                    return idx, query, [], str(e)
-            
-            # Prepare query batches
-            query_batches = []
-            for i in range(0, len(queries), batch_size):
-                batch = queries[i:i + batch_size]
-                for j, query in enumerate(batch):
-                    query_batches.append((i + j, query))
-            
-            results_dict = {}
-            successful_queries = 0
-            
-            # Process queries in parallel with limited concurrency
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                future_to_query = {executor.submit(search_single_query, query_data): query_data[1] 
-                                 for query_data in query_batches}
-                
-                for future in as_completed(future_to_query):
-                    idx, query, results, error = future.result()
-                    
-                    if error:
-                        print(f"❌ Query {idx + 1} failed: {error}")
-                        results_dict[query] = []
-                    else:
-                        successful_queries += 1
-                        results_dict[query] = results
-            
-            batch_time = time.time() - batch_start
-            
-            # Update performance stats
-            self._performance_stats['total_queries'] += len(queries)
-            avg_time_per_query = batch_time / len(queries) if queries else 0
-            
-            current_avg = self._performance_stats['avg_query_time']
-            total_queries = self._performance_stats['total_queries']
-            new_avg = ((current_avg * (total_queries - len(queries))) + batch_time) / total_queries
-            self._performance_stats['avg_query_time'] = new_avg
-            
-            print(f"✓ Batch search completed: {successful_queries}/{len(queries)} successful in {batch_time:.2f}s")
-            print(f"📊 Average time per query: {avg_time_per_query:.3f}s")
-            
-            return results_dict
-            
-        except Exception as e:
-            print(f"❌ Batch similarity search failed: {e}")
-            return {}
-    
-    def batch_update_documents(self, document_updates: List[tuple], batch_size: int = 25):
-        """Update multiple documents in batches. Each tuple: (document_id, new_document)."""
-        if not self._vector_store:
-            print("❌ Vector store not initialized")
-            return False
-        
-        try:
-            print(f"🔄 Updating {len(document_updates)} documents in batches of {batch_size}")
-            
-            successful_updates = 0
-            failed_updates = 0
-            
-            # Process updates in batches to avoid overwhelming the system
-            for i in range(0, len(document_updates), batch_size):
-                batch = document_updates[i:i + batch_size]
-                
-                try:
-                    # Extract documents from the batch
-                    documents_to_add = [doc for _, doc in batch]
-                    
-                    # Add updated documents (ChromaDB will handle deduplication)
-                    self._vector_store.add_documents(documents_to_add)
-                    
-                    successful_updates += len(batch)
-                    print(f"✓ Updated batch {i//batch_size + 1}/{(len(document_updates) + batch_size - 1)//batch_size}")
-                    
-                except Exception as e:
-                    failed_updates += len(batch)
-                    print(f"❌ Batch {i//batch_size + 1} update failed: {e}")
-            
-            if failed_updates == 0:
-                print(f"✓ Successfully updated all {successful_updates} documents")
-                return True
-            else:
-                print(f"⚠️ Updated {successful_updates} documents, {failed_updates} failed")
-                return successful_updates > 0
-                
-        except Exception as e:
-            print(f"❌ Batch document update failed: {e}")
-            return False
-    
     def similarity_search_with_stats(self, query: str, k: int = 4):
         """Perform similarity search with performance tracking."""
         if not self._vector_store:
@@ -360,10 +182,6 @@ class VectorStore:
         # Update running average
         new_avg = ((current_avg * (total_queries - 1)) + query_time) / total_queries
         self._performance_stats['avg_query_time'] = new_avg
-    
-    def get_performance_stats(self) -> Dict:
-        """Get vector store performance statistics."""
-        return self._performance_stats.copy()
     
     def optimize_collection(self):
         """Optimize ChromaDB collection for better performance."""
@@ -431,78 +249,3 @@ class VectorStore:
         except Exception as e:
             print(f"⚠️ Index validation failed: {e}")
     
-    def configure_optimal_indices(self, force_rebuild: bool = False):
-        """Configure optimal indices for contract document queries."""
-        try:
-            client = _connection_pool.get_client(self.persist_directory)
-            
-            # Check if collection needs reconfiguration
-            collection_name = "contract_documents"
-            needs_rebuild = force_rebuild
-            
-            try:
-                existing_collection = client.get_collection(collection_name)
-                metadata = existing_collection.metadata or {}
-                
-                # Check if current settings are sub-optimal
-                current_ef = metadata.get("hnsw:construction_ef", 200)
-                current_m = metadata.get("hnsw:M", 16)
-                current_search_ef = metadata.get("hnsw:search_ef", 100)
-                
-                if current_ef < 400 or current_m < 32 or current_search_ef < 200:
-                    needs_rebuild = True
-                    print("⚠️ Sub-optimal index configuration detected, rebuilding...")
-                    
-            except ValueError:
-                needs_rebuild = True
-                print("📊 No existing collection found, will create optimized index")
-            
-            if needs_rebuild and hasattr(self, 'documents') and self.documents:
-                print("🔧 Rebuilding collection with optimal index configuration...")
-                
-                # Delete existing collection if it exists
-                try:
-                    client.delete_collection(collection_name)
-                    print("✓ Removed sub-optimal collection")
-                except ValueError:
-                    pass  # Collection didn't exist
-                
-                # Recreate with optimal settings
-                self.create_vector_store(collection_name)
-                print("✓ Created collection with optimal index configuration")
-                
-                return True
-            else:
-                print("✓ Index configuration is already optimal")
-                return True
-                
-        except Exception as e:
-            print(f"❌ Failed to configure optimal indices: {e}")
-            return False
-    
-    def cleanup_old_collections(self, max_age_days: int = 30):
-        """Clean up old unused collections."""
-        try:
-            client = _connection_pool.get_client(self.persist_directory)
-            collections = client.list_collections()
-            
-            cleaned_count = 0
-            for collection in collections:
-                # Simple cleanup based on collection name pattern
-                # In a production system, you'd want more sophisticated logic
-                if collection.name.startswith("temp_") or collection.name.startswith("test_"):
-                    try:
-                        client.delete_collection(collection.name)
-                        cleaned_count += 1
-                        print(f"🧹 Cleaned up collection: {collection.name}")
-                    except Exception as e:
-                        print(f"⚠️ Failed to delete collection {collection.name}: {e}")
-            
-            if cleaned_count > 0:
-                print(f"✓ Cleaned up {cleaned_count} old collections")
-            
-            return cleaned_count
-            
-        except Exception as e:
-            print(f"⚠️ Collection cleanup failed: {e}")
-            return 0

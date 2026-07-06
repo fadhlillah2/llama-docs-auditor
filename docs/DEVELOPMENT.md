@@ -14,7 +14,7 @@
 # Clone and setup everything
 git clone <repository-url>
 cd High-Precision-Contract-Advisor-RAG
-./setup-venv.sh dev  # Sets up Python environment with dev dependencies
+./setup-project.sh  # Sets up Python and frontend dependencies
 cd frontend && npm install  # Sets up frontend dependencies
 ```
 
@@ -25,7 +25,7 @@ ollama serve
 
 # Terminal 2: Start Backend (with hot reload)
 source venv/bin/activate
-cd backend && python3 dev_server.py
+cd backend && python3 server.py
 
 # Terminal 3: Start Frontend (with hot reload)
 cd frontend && npm run dev
@@ -51,7 +51,7 @@ pip install -r requirements-dev.txt
 cd frontend && npm install
 
 # 4. Format and check code
-./format-python.sh        # Format Python code
+black backend rag && isort backend rag  # Format Python code
 cd frontend && npm run fix-all  # Format frontend code
 
 # 5. Run tests
@@ -65,7 +65,7 @@ cd frontend && npm test
 ### Code Quality Checks
 ```bash
 # Backend (Python)
-./format-python.sh                    # Format with Black, isort
+black backend rag && isort backend rag  # Format with Black, isort
 source venv/bin/activate
 cd backend && python -m pytest        # Run tests
 flake8 backend/ rag/                  # Style checking
@@ -85,7 +85,6 @@ npm test                             # Jest testing
 High-Precision-Contract-Advisor-RAG/
 ├── backend/                 # Flask API server
 │   ├── server.py           # Main application
-│   ├── dev_server.py       # Development server with hot reload
 │   ├── session_manager.py  # Session management
 │   └── test_*.py          # Backend tests
 ├── frontend/               # Next.js React application
@@ -101,13 +100,11 @@ High-Precision-Contract-Advisor-RAG/
 │   ├── vector_store.py    # ChromaDB integration
 │   └── *.py              # Other RAG components
 ├── docs/                   # Documentation
-│   ├── CLAUDE.md          # Main documentation
 │   ├── tasks.md           # Implementation tasks
 │   └── DEVELOPMENT.md     # This file
 ├── requirements.minimal.txt # Production dependencies (21 packages)
 ├── requirements-dev.txt    # Development dependencies
-├── setup-venv.sh          # Environment setup script
-└── format-python.sh       # Python formatting script
+└── CLAUDE.md              # Main documentation
 ```
 
 ## 🔧 Configuration Files
@@ -126,10 +123,8 @@ High-Precision-Contract-Advisor-RAG/
 - `.husky/pre-commit` - Git pre-commit hooks
 
 ### Development Scripts
-- `setup-venv.sh` - Automated Python environment setup
+- `setup-project.sh` - Automated Python and frontend environment setup
 - `activate-env.sh` - Quick environment activation
-- `format-python.sh` - Python code formatting
-- `backend/dev_server.py` - Enhanced development server
 
 ## 🧪 Testing Strategy
 
@@ -286,7 +281,7 @@ cd frontend && npm install
 
 # Run checks manually
 npm run check-all
-./format-python.sh
+black backend rag && isort backend rag
 
 # Skip hooks temporarily (not recommended)
 git commit --no-verify
@@ -312,8 +307,8 @@ git commit --no-verify
 # Stop all servers (Ctrl+C)
 
 # Reset Python environment
-rm -rf venv
-./setup-venv.sh dev
+rm -rf .venv
+./setup-project.sh
 
 # Reset frontend
 cd frontend
@@ -349,7 +344,7 @@ python -m memory_profiler backend/server.py
 - [ ] All tests passing (`npm test` and `pytest`)
 - [ ] No TypeScript errors (`npm run type-check`)
 - [ ] No linting errors (`npm run lint`, `flake8`)
-- [ ] Code formatted (`npm run format`, `./format-python.sh`)
+- [ ] Code formatted (`npm run format`, `black backend rag`)
 - [ ] Environment variables configured (`.env.example` → `.env`)
 - [ ] SSL certificates configured for production
 - [ ] Rate limiting and authentication enabled

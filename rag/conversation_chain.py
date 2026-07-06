@@ -131,56 +131,6 @@ Remember: Provide thorough, well-synthesized answers that help the user understa
         return conversation_chain
 
 
-class OptimizedConversationalRetrievalChain(ConversationalRetrievalChain):
-    """Extended ConversationalRetrievalChain with context optimization."""
-    
-    def __init__(self, context_optimizer=None, max_tokens_limit=1500, **kwargs):
-        super().__init__(**kwargs)
-        self.__dict__['context_optimizer'] = context_optimizer
-        self.__dict__['max_tokens_limit'] = max_tokens_limit
-    
-    def _get_docs(self, question: str, inputs: dict, *, run_manager=None) -> List[Document]:
-        """Get documents with potential optimization."""
-        docs = super()._get_docs(question, inputs, run_manager=run_manager)
-        
-        # Apply context optimization if available
-        context_optimizer = self.__dict__.get('context_optimizer')
-        max_tokens_limit = self.__dict__.get('max_tokens_limit', 1500)
-        
-        if context_optimizer and docs:
-            # Estimate tokens and optimize if needed
-            total_content = " ".join([doc.page_content for doc in docs])
-            estimated_tokens = len(total_content.split()) * 1.3  # Rough token estimation
-            
-            if estimated_tokens > max_tokens_limit * 0.7:  # Use 70% of limit for context
-                print(f"⚠️ Context optimization: {estimated_tokens:.0f} tokens -> optimizing")
-                # Return fewer, more relevant documents
-                return docs[:3]  # Limit to top 3 most relevant
-        
-        return docs
-    
-    @classmethod
-    def from_llm(cls, context_optimizer=None, max_tokens_limit=1500, **kwargs):
-        """Create optimized chain from LLM."""
-        try:
-            chain = super().from_llm(**kwargs)
-            chain.__dict__['context_optimizer'] = context_optimizer
-            chain.__dict__['max_tokens_limit'] = max_tokens_limit
-            return chain
-        except Exception as e:
-            print(f"⚠️ Failed to create OptimizedConversationalRetrievalChain: {e}")
-            print("🔄 Falling back to standard ConversationalRetrievalChain")
-            try:
-                # Fallback to standard chain without optimizations
-                from langchain.chains import ConversationalRetrievalChain
-                return ConversationalRetrievalChain.from_llm(**kwargs)
-            except Exception as e2:
-                print(f"⚠️ Failed to create standard ConversationalRetrievalChain: {e2}")
-                print("🔄 Falling back to SimpleDirectQAChain (bypasses LLMChain validation)")
-                # Final fallback to simple direct QA chain
-                return SimpleDirectQAChain(**kwargs)
-
-
 class SimpleDirectQAChain:
     """Simplified QA chain that bypasses LLMChain validation issues."""
 

@@ -19,10 +19,6 @@ mypy==1.8.0
 # Documentation
 jupyter==1.0.0
 ipykernel==6.29.3
-matplotlib==3.8.3
-
-# Development Server
-watchdog==4.0.0
 
 # Security Scanning
 safety==3.0.1
