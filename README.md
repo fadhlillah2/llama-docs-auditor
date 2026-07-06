@@ -57,6 +57,7 @@ Then open: **http://localhost:3000**
 
 ## 📚 Documentation
 
+- **System Diagrams**: [docs/DIAGRAMS.md](docs/DIAGRAMS.md) — architecture, ERD, sequence, activity, deployment, state machines (code-grounded)
 - **Full Setup Guide**: [docs/CLAUDE.md](docs/CLAUDE.md)
 - **Development Docs**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - **Architecture Overview**: [docs/README.md](docs/README.md)

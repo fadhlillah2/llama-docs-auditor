@@ -511,6 +511,7 @@ project/
 ├── scripts/             # Utility scripts
 │   └── setup_evaluation.sh  # Evaluation framework setup
 ├── docs/                # Documentation
+│   ├── DIAGRAMS.md      # System diagrams (architecture, ERD, sequence, activity, deployment, state machines)
 │   ├── EVALUATION_USAGE.md   # Evaluation usage guide
 │   └── *.md             # Additional documentation
 ├── setup-project.sh     # One-time setup automation
