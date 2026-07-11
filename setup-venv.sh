@@ -74,7 +74,7 @@ echo "3. Pull the model: ollama pull nomic-embed-text:latest"
 echo "4. Start backend: cd backend && python3 server.py"
 echo "5. Start frontend: cd frontend && npm run dev"
 echo ""
-echo "📚 Documentation: docs/CLAUDE.md"
+echo "📚 Documentation: README.md and docs/"
 
 # Create activation script
 cat > activate-env.sh << 'EOF'

@@ -10,3 +10,11 @@ data
 cache
 /backend/.venv/
 /backend/flask_session/
+
+# Secrets / session artifacts
+cookies.txt
+*.session
+
+# Python bytecode
+__pycache__/
+*.pyc

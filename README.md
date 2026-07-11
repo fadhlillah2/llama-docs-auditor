@@ -2,14 +2,24 @@
 
 An AI-powered contract analysis system using Retrieval-Augmented Generation (RAG) technology with advanced EasyOCR support for Indonesian contract documents. Upload contracts (PDF, DOCX, TXT, **Images**) and ask questions to get intelligent responses.
 
-## 🚀 Quick Start (2 Commands)
+## 🚀 Quick Start
 
 ```bash
-# 1. Setup everything (one time only)
-./setup-project.sh
+# 1. Add your Groq API key (get one free at https://console.groq.com/keys)
+echo "GROQ_API_KEY=gsk_your-actual-key" > .env
 
-# 2. Run the project
-./run-project.sh
+# 2. Install dependencies (Python venv + frontend packages, one time only)
+./setup-project.sh
+```
+
+Then start the two services in separate terminals:
+
+```bash
+# Terminal 1 — backend API (http://127.0.0.1:8081)
+source .venv/bin/activate && cd backend && python server.py
+
+# Terminal 2 — frontend (http://localhost:3000)
+cd frontend && npm run dev
 ```
 
 Then open: **http://localhost:3000**
@@ -91,8 +101,7 @@ Then open: **http://localhost:3000**
 ## 📚 Documentation
 
 - **🚀 Quick Setup**: [SETUP.md](SETUP.md) - Panduan instalasi cepat
-- **📖 Full Documentation**: [docs/CLAUDE.md](docs/CLAUDE.md) - Dokumentasi lengkap
-- **🆕 EasyOCR Details**: [EASYOCR_IMPLEMENTATION_SUMMARY.md](EASYOCR_IMPLEMENTATION_SUMMARY.md) - Implementasi EasyOCR
+- **🆕 EasyOCR Details**: [docs/EASYOCR_INTEGRATION.md](docs/EASYOCR_INTEGRATION.md) - Implementasi EasyOCR
 - **🛠️ Development**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Panduan pengembang
 - **🏗️ Architecture**: [docs/README.md](docs/README.md) - Overview arsitektur
 
@@ -100,8 +109,7 @@ Then open: **http://localhost:3000**
 
 ### **For Indonesian Contract Images**
 ```bash
-# 1. Start the application
-./run-project.sh
+# 1. Start the app (see Quick Start above)
 
 # 2. Open http://localhost:3000
 
@@ -206,8 +214,8 @@ kill -9 $(lsof -t -i:8081)
 ```
 
 ### **Still having issues?**
-- Check detailed troubleshooting in [docs/CLAUDE.md](docs/CLAUDE.md)
-- Review EasyOCR implementation details in [EASYOCR_IMPLEMENTATION_SUMMARY.md](EASYOCR_IMPLEMENTATION_SUMMARY.md)
+- Check detailed troubleshooting in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- Review EasyOCR implementation details in [docs/EASYOCR_INTEGRATION.md](docs/EASYOCR_INTEGRATION.md)
 - Check backend logs: `tail -f logs/app.log`
 - Verify frontend logs: Browser DevTools Console
 

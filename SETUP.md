@@ -13,14 +13,18 @@ Panduan instalasi lengkap untuk sistem analisis kontrak AI dengan kemampuan OCR 
 - **Git** - Untuk clone repository
 - **CMake** - Untuk dependency OpenCV (biasanya sudah terinstall)
 
-## ⚡ Quick Start (2 Commands)
+## ⚡ Quick Start
 
 ```bash
-# 1. Setup semua dependencies (sekali saja)
+# 1. Tambahkan Groq API key (gratis di https://console.groq.com/keys)
+echo "GROQ_API_KEY=gsk_your-actual-key" > .env
+
+# 2. Install semua dependencies (sekali saja)
 ./setup-project.sh
 
-# 2. Jalankan aplikasi
-./run-project.sh
+# 3. Jalankan aplikasi (dua terminal terpisah):
+#    Terminal 1 — backend:  source .venv/bin/activate && cd backend && python server.py
+#    Terminal 2 — frontend: cd frontend && npm run dev
 ```
 
 Kemudian buka: **http://localhost:3000**
@@ -192,8 +196,8 @@ rm -rf .venv frontend/node_modules data/chroma_db cache/
 ## 🆘 Bantuan
 
 - **Full Documentation**: [README.md](README.md)
-- **Technical Details**: [docs/CLAUDE.md](docs/CLAUDE.md)
-- **EasyOCR Details**: [EASYOCR_IMPLEMENTATION_SUMMARY.md](EASYOCR_IMPLEMENTATION_SUMMARY.md)
+- **Development Guide**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- **EasyOCR Details**: [docs/EASYOCR_INTEGRATION.md](docs/EASYOCR_INTEGRATION.md)
 - **Issues**: Open issue di GitHub repository
 
 ## 🎉 Success Indicators
