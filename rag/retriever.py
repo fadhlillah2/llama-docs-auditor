@@ -1,4 +1,5 @@
 import gc
+import re
 import time
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
@@ -8,6 +9,33 @@ from typing import List, Any, Dict
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+# Section reference forms, most specific first so the longest match wins.
+# Single source of truth: detection, exact-match checking, boosting and the
+# exact-search fallback all read this list.
+SECTION_PATTERNS = [
+    r'Section\s+[IVX]+\.\d+',      # Section IV.15, Section II.3, etc.
+    r'Article\s+[IVX]+',           # Article IV, Article II, etc.
+    r'[IVX]+\.\d+',                # IV.15, II.3, etc.
+    r'Section\s+[A-Za-z]+\.\d+',   # Section A.1, Section B.2, etc.
+]
+
+
+def extract_section_references(query: str) -> List[str]:
+    """Return every section reference the query names, longest match first.
+
+    Replaces the previous hard-coded `if 'IV.15' in query` check, which only
+    ever fired for one clause from a sample contract.
+    """
+    references = []
+    seen = set()
+    for pattern in SECTION_PATTERNS:
+        for found in re.findall(pattern, query, re.IGNORECASE):
+            key = re.sub(r'\s+', ' ', found).strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                references.append(found)
+    return references
 
 class SimpleRetriever(BaseRetriever):
     """Custom retriever using cosine similarity with performance monitoring."""
@@ -322,12 +350,6 @@ class SimpleRetriever(BaseRetriever):
         }
 
         # Section reference boosting - very high priority for exact section matches
-        section_patterns = [
-            r'Section\s+[IVX]+\.\d+',      # Section IV.15, Section II.3, etc.
-            r'Article\s+[IVX]+',           # Article IV, Article II, etc.
-            r'[IVX]+\.\d+',               # IV.15, II.3, etc.
-            r'Section\s+[A-Za-z]+\.\d+',  # Section A.1, Section B.2, etc.
-        ]
         
         query_lower = query.lower()
         boosted_results = []
@@ -337,8 +359,7 @@ class SimpleRetriever(BaseRetriever):
             doc_content_lower = doc.page_content.lower()
 
             # Apply section reference boosting (highest priority)
-            import re
-            for pattern in section_patterns:
+            for pattern in SECTION_PATTERNS:
                 if re.search(pattern, query, re.IGNORECASE) and re.search(pattern, doc.page_content, re.IGNORECASE):
                     boost_factor += 0.5  # Very high boost for section matches
                     print(f"🎯 Section boost applied for pattern: {pattern}")
@@ -369,14 +390,7 @@ class SimpleRetriever(BaseRetriever):
 
     def _contains_section_reference(self, query: str) -> bool:
         """Check if query contains a section reference."""
-        import re
-        section_patterns = [
-            r'Section\s+[IVX]+\.\d+',
-            r'Article\s+[IVX]+',
-            r'[IVX]+\.\d+',
-            r'Section\s+[A-Za-z]+\.\d+',
-        ]
-        for pattern in section_patterns:
+        for pattern in SECTION_PATTERNS:
             if re.search(pattern, query, re.IGNORECASE):
                 print(f"🔍 DEBUG: Section reference found with pattern '{pattern}' in query: '{query}'")
                 return True
@@ -385,16 +399,9 @@ class SimpleRetriever(BaseRetriever):
 
     def _has_exact_section_match(self, results: List[tuple], query: str) -> bool:
         """Check if results contain exact section match."""
-        import re
-        section_patterns = [
-            r'Section\s+[IVX]+\.\d+',
-            r'Article\s+[IVX]+',
-            r'[IVX]+\.\d+',
-            r'Section\s+[A-Za-z]+\.\d+',
-        ]
         print(f"🔍 DEBUG: Checking {len(results)} results for exact section match")
         for i, (doc, score, search_type) in enumerate(results):
-            for pattern in section_patterns:
+            for pattern in SECTION_PATTERNS:
                 query_match = re.search(pattern, query, re.IGNORECASE)
                 doc_match = re.search(pattern, doc.page_content, re.IGNORECASE)
                 if query_match and doc_match:
@@ -404,30 +411,30 @@ class SimpleRetriever(BaseRetriever):
         return False
 
     def _exact_section_search(self, query: str, limit: int = 3) -> List[tuple]:
-        """Perform exact text search for section references."""
-        import re
+        """Perform exact text search for whatever section reference the query names."""
         matches = []
-        query_patterns = []
+        seen_chunks = set()
 
         print(f"🔍 DEBUG: Starting exact section search for query: '{query}'")
 
-        # Extract section patterns from query
-        if 'IV.15' in query:
-            query_patterns.append(r'IV\.15')
-        if 'Section IV.15' in query:
-            query_patterns.append(r'Section\s+IV\.15')
-
-        print(f"🔍 DEBUG: Query patterns to search: {query_patterns}")
+        references = extract_section_references(query)
+        print(f"🔍 DEBUG: References found in query: {references}")
         print(f"🔍 DEBUG: Searching through {len(self._chunks)} chunks")
 
-        # Search for exact matches
-        for pattern in query_patterns:
-            print(f"🔍 DEBUG: Searching for pattern: '{pattern}'")
+        for reference in references:
+            # escape per word, then rejoin on \s+ — tolerates the doubled spacing
+            # OCR leaves behind ("Section  IV.15"). Escaping the whole string first
+            # would turn its spaces into "\ " and the \s+ would attach to the backslash.
+            needle = r'\s+'.join(re.escape(part) for part in reference.split())
+            print(f"🔍 DEBUG: Searching for reference: '{reference}'")
             for i, chunk in enumerate(self._chunks):
-                if re.search(pattern, chunk.page_content, re.IGNORECASE):
+                if id(chunk) in seen_chunks:
+                    continue
+                if re.search(needle, chunk.page_content, re.IGNORECASE):
                     # High score for exact matches
+                    seen_chunks.add(id(chunk))
                     matches.append((chunk, 2.0, 'exact-search'))
-                    print(f"🎯 Exact match found: {pattern} in chunk {i}")
+                    print(f"🎯 Exact match found: {reference} in chunk {i}")
                     if len(matches) >= limit:
                         break
             if len(matches) >= limit:
