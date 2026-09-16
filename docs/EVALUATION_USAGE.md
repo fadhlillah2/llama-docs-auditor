@@ -1,414 +1,134 @@
-# RAG Evaluation Framework Usage Guide
+# RAG evaluation: reproduction and limits
 
-## Quick Start
+Run commands from the repository root. The offline inspection needs only Python
+3; it does not run retrieval, OCR, generation, or RAGAS.
 
-### 1. Quick Evaluation Test ✅ TESTED WORKING
+## Offline fixture and historical-report inspection
+
+The old `data/uploads_test/sample_contract.txt` example is absent from this
+checkout. Use the existing public demo `backend/uploads/demo_contract.txt`.
+This text fixture cannot measure OCR accuracy.
+
 ```bash
-# Activate virtual environment FIRST
-source .venv/bin/activate
-
-# Use absolute path for reliability
-python3 -m rag.evaluation.rag_evaluator $(pwd)/data/uploads_test/sample_contract.txt
-```
-
-### 2. Run with Custom Questions ✅ TESTED WORKING
-```bash
-# Activate virtual environment FIRST
-source .venv/bin/activate
-
-# Use absolute path with PYTHONPATH fix
-python3 -c "
-import sys
-import os
-sys.path.append('.')
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline(
-    os.path.abspath('data/uploads_test/sample_contract.txt'),
-    test_questions=[
-        'What are the payment terms?',
-        'When can this contract be terminated?',
-        'What is the liability limitation?'
-    ]
-)
-evaluator.print_evaluation_summary(result)
-"
-```
-
-### 3. Performance Benchmarking ✅ TESTED WORKING
-```bash
-# Activate virtual environment FIRST
-source .venv/bin/activate
-
-# Use absolute path for reliability
-python3 tests/performance/benchmark_rag.py $(pwd)/data/uploads_test/sample_contract.txt --questions 5 --concurrent 1
-```
-
-### 4. Automated Evaluation Pipeline ✅ TESTED WORKING
-```bash
-# Activate virtual environment FIRST
-source .venv/bin/activate
-
-# Run automated evaluation with proper configuration
-python3 -c "
-import sys
-import os
-sys.path.append('.')
-from tests.evaluation.automated_evaluation import AutomatedEvaluationPipeline, EvaluationConfig
-
-config = EvaluationConfig(
-    document_path=os.path.abspath('data/uploads_test/sample_contract.txt'),
-    num_questions=3,
-    output_dir='evaluation_results',
-    include_ragas=False  # Set to True for full evaluation
-)
-
-pipeline = AutomatedEvaluationPipeline(config)
-result = pipeline.run_evaluation()
-
-if result['success']:
-    print('✅ Evaluation completed successfully!')
-    print(f'📄 Results: {result[\"output_file\"]}')
-else:
-    print(f'❌ Evaluation failed: {result[\"error\"]}')
-"
-```
-
-### 5. Generate Trend Analysis ✅ TESTED WORKING
-```bash
-# Activate virtual environment FIRST
-source .venv/bin/activate
-
-# Generate trend analysis (if multiple evaluations exist)
-python3 -c "
-import sys
-import os
-sys.path.append('.')
-from tests.evaluation.automated_evaluation import AutomatedEvaluationPipeline, EvaluationConfig
-
-config = EvaluationConfig(
-    document_path=os.path.abspath('data/uploads_test/sample_contract.txt'),
-    num_questions=3,
-    output_dir='evaluation_results'
-)
-
-pipeline = AutomatedEvaluationPipeline(config)
-
-# Create some evaluation history first
-for i in range(3):
-    result = pipeline.run_evaluation()
-    print(f'Run {i+1}: {\"Success\" if result[\"success\"] else \"Failed\"}')
-
-# Generate trend analysis
-trend_report = pipeline.generate_trend_report(days=30)
-print('📈 Trend Analysis completed')
-print(f'📄 Report: evaluation_results/trend_report_*.json')
-"
-```
-
-## Test Suite
-
-### Run All Tests ✅ TESTED WORKING
-```bash
-# Activate virtual environment FIRST
-source .venv/bin/activate
-
-# Run unit tests for evaluation components
-python3 backend/test_evaluation.py
-
-# Run integration tests
-python3 tests/evaluation/test_rag_integration.py
-```
-
-## Configuration
-
-Edit `evaluation_config.json` to customize evaluation parameters.
-
-## Output
-
-Results are saved in:
-- `evaluation_results/` - Main evaluation results
-- `logs/` - Detailed logs
-- `cache/evaluations/` - Cached evaluation data
-
-## Troubleshooting
-
-### Common Issues and Solutions
-
-#### 1. **Import Errors** ❌→✅ SOLVED
-**Problem**: `ModuleNotFoundError: No module named 'data_loader'`
-
-**Solution**: Always activate virtual environment FIRST:
-```bash
-# ❌ WRONG - Direct execution
-python3 -m rag.evaluation.rag_evaluator
-
-# ✅ CORRECT - With virtual environment
-source .venv/bin/activate
-PYTHONPATH=. python3 -m rag.evaluation.rag_evaluator
-```
-
-#### 2. **Path Resolution Issues** ❌→✅ SOLVED
-**Problem**: File not found or path errors
-
-**Solution**: Use absolute paths:
-```bash
-# ❌ WRONG - Relative path
-python3 -c "from rag.evaluation.rag_evaluator import ContractQAEvaluator; evaluator.evaluate_rag_pipeline('data/uploads_test/sample_contract.txt')"
-
-# ✅ CORRECT - Absolute path with PYTHONPATH
-source .venv/bin/activate
-python3 -c "
-import os
-import sys
-sys.path.append('.')
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-
-file_path = os.path.abspath('data/uploads_test/sample_contract.txt')
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline(file_path, test_questions=['Test question'])
-"
-```
-
-#### 3. **RAGAS Import Issues** ❌→✅ SOLVED
-**Problem**: `ImportError: No module named 'ragas'`
-
-**Solution**: Ensure setup script was run correctly:
-```bash
-# Verify installation
-source .venv/bin/activate
-python3 -c "import ragas; print('✅ RAGAS version:', ragas.__version__)"
-```
-
-If still failing, install manually:
-```bash
-source .venv/bin/activate
-pip install ragas datasets
-```
-
-#### 4. **RAGAS API Key Error** ❌→✅ SOLVED
-**Problem**: `The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable`
-
-**Solution**: RAGAS requires OpenAI API key for evaluation metrics:
-```bash
-# Option 1: Set environment variable
-export OPENAI_API_KEY=sk-your-openai-api-key-here
-
-# Option 2: Disable RAGAS evaluation for testing
-source .venv/bin/activate
-python3 -c "
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline(
-    'data/uploads_test/sample_contract.txt',
-    test_questions=['Test question'],
-    use_ragas=False  # Disable RAGAS to avoid API key requirement
-)
-evaluator.print_evaluation_summary(result)
-"
-```
-
-#### 5. **ChromaDB Dependencies Missing** ⚠️
-**Issue**: Missing `pybase64` and other ChromaDB dependencies
-
-**Status**: System automatically falls back to fake embeddings
-**Impact**: Reduced semantic search quality, but system still functional
-
-**Solution** (Optional for production):
-```bash
-source .venv/bin/activate
-pip install pybase64 build grpcio importlib-resources jsonschema
-```
-
-#### 6. **Memory Issues** ⚠️→✅ SOLVED
-**Problem**: OutOfMemory errors during evaluation
-
-**Solution**: Reduce number of questions:
-```bash
-# Use fewer questions for memory-limited systems
-python3 -c "
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline(
-    'data/uploads_test/sample_contract.txt',
-    test_questions=['Single test question']  # Only 1 question
-)
-"
-```
-
-#### 7. **Timeout Issues** ⚠️→✅ SOLVED
-**Problem**: Requests timing out
-
-**Solution**: Increase timeout in configuration:
-```bash
-python3 -c "
+python3 -B - <<'PY'
 import json
-config = {
-    'default_settings': {
-        'timeout_seconds': 600,  # Increase from 300 to 600 seconds
-        'num_questions': 5
-    }
-}
-with open('evaluation_config.json', 'w') as f:
-    json.dump(config, f, indent=2)
-print('✅ Timeout increased to 10 minutes')
-"
+from pathlib import Path
+
+fixture = Path('backend/uploads/demo_contract.txt')
+text = fixture.read_text(encoding='utf-8')
+assert text.strip(), 'Demo fixture is empty'
+print(f'Fixture available: {fixture} ({len(text)} characters)')
+reports = sorted(Path('evaluation_results').glob('evaluation_*.json'))
+assert reports, 'No historical reports found'
+for path in reports:
+    report = json.loads(path.read_text(encoding='utf-8'))
+    perf = report['performance_metrics']
+    enabled = report['metadata']['config']['include_ragas']
+    print(path.name, f"queries={perf['successful_queries']}/{perf['total_questions']}",
+          f"error_rate={perf['error_rate']}",
+          'RAGAS disabled: scores unmeasured' if not enabled
+          else 'RAGAS requested: inspect logs before interpreting scores')
+PY
 ```
 
-#### 8. **Parameter Name Errors** ❌→✅ SOLVED
-**Problem**: `TypeError: got an unexpected keyword argument 'num_questions'`
+This reads saved data, not fresh evaluation results. Both committed October 2025
+reports have `include_ragas: false`. One records 9/9 queries and approximately
+15.5 seconds average query response time; the other records zero questions and
+`error_rate: 1.0`. Their original document is absent. The demo is a new smoke-test
+input, not a replacement that recreates the old benchmark.
 
-**Solution**: Use correct parameter name:
+## Optional live generation smoke test — dependencies and API access required
+
+The command below has **not** been validated end to end in the dependency-free
+environment used for the September 2026 documentation review. Before running:
+
+- Prepare an isolated Python environment with the pipeline dependencies:
+  NumPy, python-dotenv, LangChain/core/community/Groq integrations, document
+  loaders (including Pillow and pytesseract imports), and the chosen embedding
+  and vector-store stack. Existing requirements files are starting points, not
+  a freshly verified lockfile. Activating a venv alone does not install them.
+- Supply `GROQ_API_KEY` privately and confirm access to `GROQ_MODEL_NAME`
+  (source default `llama-3.3-70b-versatile`). The pipeline loads dotenv files;
+  never print or commit credentials.
+- Provide real embedding dependencies/model assets; initialization may download
+  missing model assets. HuggingFace defaults to
+  `sentence-transformers/all-MiniLM-L6-v2` via `EMBEDDING_MODEL`; Chroma may use
+  its own default embedding function. Record the path selected in run logs.
+  Fake-embedding fallback is not semantic retrieval evidence.
+- Use a disposable checkout/runtime directory. Besides vector data, the
+  pipeline writes relative embedding caches. Keep new reports separate from
+  historical artifacts; set a process time limit and API spending limit.
+
+Only the public demo text and these three questions are intended inputs.
+Questions and retrieved context go to Groq. Do not substitute client documents.
+`use_ragas=False` disables the RAGAS judge, **not** remote generation. This
+example does not request an OpenAI judge call.
+
 ```bash
-# ❌ WRONG
-evaluator.evaluate_rag_pipeline('document.txt', num_questions=5)
-
-# ✅ CORRECT
-evaluator.evaluate_rag_pipeline('document.txt', test_questions=['Q1', 'Q2', 'Q3'])
-```
-
-### 📝 Performance Tips
-
-#### Optimize for Speed
-```bash
-# Use caching (automatically enabled)
-# First query creates cache, subsequent queries use cached results
-
-# Reduce question count for faster evaluation
-python3 -c "
+python3 -B - <<'PY'
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline('document.txt', test_questions=['Single question'])
-"
+
+document = Path('backend/uploads/demo_contract.txt').resolve(strict=True)
+questions = [
+    'What are the payment terms?',
+    'Who owns the code developed under this agreement?',
+    'How much written notice is required for termination?',
+]
+with TemporaryDirectory(prefix='rag-evaluation-') as temp:
+    evaluator = ContractQAEvaluator(vector_db_path=str(Path(temp) / 'chroma'))
+    result = evaluator.evaluate_rag_pipeline(
+        str(document), test_questions=questions, use_ragas=False)
+    evaluator.print_evaluation_summary(result)
+    evaluator.save_evaluation_report(result, 'evaluation-smoke-report.json')
+    if (result.total_questions != len(questions)
+            or result.successful_queries != len(questions)
+            or result.error_rate != 0):
+        raise SystemExit('Generation smoke failed; inspect report and logs')
+print('Queries completed; answer correctness remains to be reviewed')
+PY
 ```
 
-#### Optimize for Quality
-```bash
-# Enable RAGAS for comprehensive evaluation
-python3 -c "
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline('document.txt', test_questions=['Q1', 'Q2', 'Q3'], use_ragas=True)
-"
-```
+Manual reference answers: **30% upfront / 70% on completion**, **TechCorp Inc.
+owns the code**, and **30 days written notice**. The aggregate report does not
+retain per-question answers or contexts. Query completion cannot verify these
+answers; quality evaluation needs a reviewed per-question record and labels.
 
-#### Run Benchmark Suite
-```bash
-# For comprehensive performance analysis
-python3 tests/performance/benchmark_rag.py $(pwd)/data/uploads_test/sample_contract.txt \
-    --questions 20 \
-    --concurrent 1 \
-    --create-plots
-```
+## Interpret the actual schema
 
-## 🎯 Quick Reference Commands
+`save_evaluation_report(result, output_path)` writes `evaluation_results` and
+recent `evaluation_history`. Automated historical files instead place metric
+groups at the top level and add `metadata`.
 
-### Daily Use Commands
-```bash
-# 1. Quick evaluation (2 questions, no RAGAS)
-source .venv/bin/activate && PYTHONPATH=. python3 -c "
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline('data/uploads_test/sample_contract.txt', test_questions=['Quick test'], use_ragas=False)
-evaluator.print_evaluation_summary(result)
-"
+| Field | Meaning and limitation |
+| --- | --- |
+| `successful_queries` | Calls returning without an exception, even if an answer is empty or incorrect. |
+| `avg_response_time` | Mean timed query calls, excluding ingestion; not an end-to-end deployment benchmark. |
+| `ragas_metrics`, `overall_score` | Default zeros can mean disabled, unavailable, or failed evaluation, not measured zero quality. `answer_similarity` is not populated by the current evaluation path. |
+| `answer_completeness` | Capped heuristic from answer word count and context count, not correctness against a reference. |
+| `context_utilization` | Fraction of distinct context words present in the answer, not retrieval precision or faithfulness. |
+| `legal_terminology_usage` | Occurrence of a small legal-word list, not legal accuracy. |
 
-# 2. Full evaluation (5 questions, with RAGAS)
-source .venv/bin/activate && python3 -c "
-import os
-import sys
-sys.path.append('.')
-from rag.evaluation.rag_evaluator import ContractQAEvaluator
-evaluator = ContractQAEvaluator()
-result = evaluator.evaluate_rag_pipeline(os.path.abspath('data/uploads_test/sample_contract.txt'), test_questions=['Q1', 'Q2', 'Q3', 'Q4', 'Q5'], use_ragas=True)
-evaluator.print_evaluation_summary(result)
-evaluator.save_evaluation_report('evaluation_report.json')
-"
+The schema does not distinguish every disabled/failed RAGAS state; retain config
+and logs. Generated reference answers are placeholders; custom questions get
+empty references. Enabling RAGAS alone does not create a validated benchmark.
+OCR needs image/text ground truth, retrieval needs relevance labels, and answer
+quality needs reviewed answers and context. The existing reports do not
+establish these independently or demonstrate production readiness.
 
-# 3. Performance benchmark (5 questions, 1 concurrent user)
-source .venv/bin/activate && python3 tests/performance/benchmark_rag.py $(pwd)/data/uploads_test/sample_contract.txt --questions 5 --concurrent 1
+## Entry-point limitations
 
-# 4. Automated evaluation (3 questions, no RAGAS)
-source .venv/bin/activate && python3 -c "
-import os
-import sys
-sys.path.append('.')
-from tests.evaluation.automated_evaluation import AutomatedEvaluationPipeline, EvaluationConfig
-config = EvaluationConfig(document_path=os.path.abspath('data/uploads_test/sample_contract.txt'), num_questions=3, output_dir='evaluation_results', include_ragas=False)
-pipeline = AutomatedEvaluationPipeline(config)
-result = pipeline.run_evaluation()
-print(f'Success: {result[\"success\"]}')"
-```
+- Prefer the direct call above: `quick_evaluate()` currently forwards unsupported
+  `num_questions` to `evaluate_rag_pipeline()`.
+- The automated runner records `num_questions` but passes `test_questions=None`,
+  so that setting does not limit its question list.
+- Automated `success: true` means the wrapper saved a report. Initialization
+  failure can still yield zero questions and `error_rate: 1.0`; inspect metrics.
+- `python3 -B tests/test_section_references.py` runs existing regression tests,
+  but missing dependencies skip them. Exit zero with skips is not retrieval proof.
 
-### Power User Commands
-```bash
-# Full benchmark suite with visualization
-source .venv/bin/activate && python3 tests/performance/benchmark_rag.py $(pwd)/data/uploads_test/sample_contract.txt --questions 15 --concurrent 3 --create-plots
-
-# Comprehensive evaluation with trend analysis
-source .venv/bin/activate && python3 -c "
-import os
-import sys
-sys.path.append('.')
-from tests.evaluation.automated_evaluation import AutomatedEvaluationPipeline, EvaluationConfig
-
-# Full configuration
-config = EvaluationConfig(
-    document_path=os.path.abspath('data/uploads_test/sample_contract.txt'),
-    num_questions=10,
-    include_ragas=True,
-    benchmark_runs=3,
-    create_trends=True,
-    output_dir='evaluation_results'
-)
-
-pipeline = AutomatedEvaluationPipeline(config)
-
-# Run benchmark suite
-print('🏁 Running benchmark suite...')
-benchmark_result = pipeline.run_benchmark_suite()
-
-# Generate trend analysis
-print('📈 Generating trend analysis...')
-trend_report = pipeline.generate_trend_report(days=30)
-
-print('✅ All evaluations completed successfully!')
-"
-```
-
-## 📋 Testing Results Summary
-
-### ✅ Successfully Tested Components
-- **RAGAS Integration**: All metrics working (faithfulness, relevancy, recall, precision)
-- **Custom Metrics**: Contract-specific evaluation (answer completeness, context utilization, legal terminology)
-- **Performance Monitoring**: Response times, throughput, resource usage
-- **Benchmarking Suite**: Complete with visualization and concurrency testing
-- **Automated Pipeline**: Scheduled evaluations with trend analysis
-- **Test Suite**: Unit tests, integration tests, performance tests
-- **Caching System**: Query result caching working effectively
-- **Error Handling**: Graceful fallbacks and recovery mechanisms
-
-### 📊 Performance Metrics Achieved
-- **Success Rate**: 100% (all queries processed successfully)
-- **Response Time**: 3-20s range (acceptable for contract analysis)
-- **Quality Scores**:
-  - Answer Completeness: 1.000 (perfect)
-  - Context Utilization: 0.350-0.366 (good)
-  - Legal Terminology: 0.556-0.625 (good)
-- **Resource Usage**: Memory 273MB, CPU 46-62%
-- **Caching**: Effective cache hit rates for repeated queries
-
-### 🎯 Production Readiness Status
-- ✅ **Evaluation Framework**: Complete and tested
-- ✅ **Performance Monitoring**: Comprehensive benchmarking
-- ✅ **Quality Metrics**: RAGAS + custom metrics
-- ✅ **Automation**: Scheduled evaluations and trend analysis
-- ✅ **Documentation**: Complete usage guides and troubleshooting
-- ✅ **Error Handling**: Robust fallback mechanisms
-- ✅ **Scalability**: Support for concurrent users and large evaluations
-
----
-
-## 🎉 Status: FULLY TESTED AND PRODUCTION READY!
-
-All RAG Evaluation Framework components have been successfully implemented and tested. The system is ready for production deployment with comprehensive evaluation capabilities.
+Before a later quality run, specify the labeled dataset, dependency environment,
+embedding/generation versions, judge provider/budget, and per-question evidence
+to retain. Do not infer quality improvement from this documentation repair or
+compare different fixtures as one benchmark.
